@@ -1,0 +1,10 @@
+Coding convention
+=================
+
+1) Modules start with upper case, e.g, Mesh, FlowEuler
+2) Subroutine names are lower case and seperated by undescore (_), e.g., mesh_metrics(...)
+3) Parameters begin with an underscore and fully lower case, e.g., _dim, _tri
+4) Local variables are all lower case and any integer variable starts with letter i,j,...,n (no underscores)
+5) Fortran types start with a lower case and concanitated by caps, e.g, type polyMesh, type crsGraph
+6) Subroutines given to Tapenade for differentiation have a trailing "_tapenade"
+
