@@ -1,3 +1,14 @@
+Cc
+--
+
+1. Is a parallel CFD solver with adjoint shape optimization support
+2. It uses Tapenade tool for getting the discrete adjoints and does the shape optimization
+3. The parallelization is achieved using MPI library
+4. Cc -> Cell-centric or CFD-centeric
+5. Has multigrid preconditioner for convergence acceleration
+6. Supports SA Turbulence model with RANS
+7. Has wall function support for RANS
+
 Coding convention
 =================
 
