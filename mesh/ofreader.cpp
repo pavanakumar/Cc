@@ -40,8 +40,8 @@ void get_pm_sizes( int *nnode, int *nface, int *ninternalface,
 /*****************************************
   Read nodes from mesh and pass it to Cc
 ******************************************/
-void get_pm_nodes( int *nNodes, double *x ) {
-  for( int i = 0; i < *nNodes; ++i ) {
+void get_pm_nodes( int *nnode, double *x ) {
+  for( int i = 0; i < *nnode; ++i ) {
     for( int j = 0; j < 3; ++j ) {
       x[ i * 3 + j ] = global_of_mesh->mesh()->points()[i][j];
     }
@@ -86,13 +86,36 @@ void get_pm_faces( int *nface, int *ninternalface,
   3 = patchneigh (proc ID) - only for pocessor patches
 ********************************************************/
 void get_pm_patches( int *npatch, int *patchdata ) {
+  Foam::wordList basicTypes =
+        global_of_mesh->mesh()->boundaryMesh().types();
+  Foam::wordList physicalTypes =
+        global_of_mesh->mesh()->boundaryMesh().physicalTypes();
   for( int i=0; i<*npatch; ++i ) {
-    patchdata[ i * 4 + 0 ] = global_of_mesh->mesh()->boundaryMesh()[i].start();
+    patchdata[ i * 4 + 0 ] = global_of_mesh->mesh()->boundaryMesh()[i].start() + 1; // +1 FORTRAN indexing
     patchdata[ i * 4 + 1 ] = global_of_mesh->mesh()->boundaryMesh()[i].size();
-    //// To do ...
-//    patchdata[ i * 4 + 2 ] = global_of_mesh->mesh()->boundaryMesh()[i].size();
-//    if( global_of_mesh->mesh()->boundaryMesh()[i].type() == "processor" )
-//      patchdata[ i * 4 + 3 ] = global_of_mesh->mesh()->boundaryMesh()[i].size();
+    patchdata[ i * 4 + 3 ] = 0; // Default value is 0 for processor neighbour
+    ////  BC type  /////
+    if( basicTypes == "wall" )
+      patchdata[ i * 4 + 2 ] = _wall_bc;
+    else if( basicTypes == "symmetryPlane" )
+      patchdata[ i * 4 + 2 ] = _symmetry_bc;
+    else if( basicTypes == "patch" )
+      patchdata[ i * 4 + 2 ] = _riemann_bc;
+    else if( basicTypes == "processor" ) {
+      patchdata[ i * 4 + 2 ] = _processor_bc;
+      processorPolyPatch &myProcPatch = 
+        const_cast<processorPolyPatch &>
+        (
+          refCast<const processorPolyPatch>
+            ( global_of_mesh->mesh()->boundaryMesh()[i] )
+        );
+      /////  Neighbour processor number
+      patchdata[ i * 4 + 3 ] = myProcPatch.neighbProcNo();
+    }
+    else {
+      Foam::Info << "Unsupported bc type " << basicTypes << "\n";
+      Foam::FatalError.exit();
+    }
   }
 }
 
