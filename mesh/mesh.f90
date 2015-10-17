@@ -1,15 +1,17 @@
 module Mesh
   implicit none
-
+!!!!!!!!!!!!  CONSTANTS  !!!!!!!!!!!!!
   !!! Comprises of patchstart, patchsize, patchtype, patchneigh
   integer, parameter :: _pstart = 1, _psize = 2, _ptype = 3, _pproc = 4
   integer, parameter :: _dim = 3, _lr = 2
   integer, parameter :: _tri = 3, _quad = 4, _quadp1 = 5
-  integer, parameter :: _enable_parallel = 0 
-
+  integer, parameter :: _enable_parallel = 0
+  integer, parameter :: _processor_bc = 0, _wall_bc = 1, _symmetry_bc = 2, &
+                        _inflow_bc = 3, _outflow_bc = 4, _riemann_bc = 5
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   type polyMesh
     !!! Sizes
-    integer :: nnode = 0, nface = 0, ninternalface = 0,
+    integer :: nnode = 0, nface = 0, ninternalface = 0, &
                ncell = 0, npatch = 0, ilevel = 0, nlevel = 0
     !!! Connecivity/Topology
     integer, dimension(:,:), allocatable :: facelr
@@ -82,11 +84,11 @@ module Mesh
     implicit none
     type( polyMesh ) :: pm
     !!! Tapenade diff function
-    call mesh_metrics_tapenade&
-         ( pm(nlevel)%nnode, pm(nlevel)%nface,&
-           pm(nlevel)%ninternalface, pm(nlevel)%ncell,&
-           pm(nlevel)%x, pm(nlevel)%facelr,&
-           pm(nlevel)%facenode, pm(nlevel)%cv, pm(nlevel)%cc,&
+    call mesh_metrics_tapenade &
+         ( pm(nlevel)%nnode, pm(nlevel)%nface, &
+           pm(nlevel)%ninternalface, pm(nlevel)%ncell, &
+           pm(nlevel)%x, pm(nlevel)%facelr, &
+           pm(nlevel)%facenode, pm(nlevel)%cv, pm(nlevel)%cc, &
            pm(nlevel)%dn, pm(nlevel)%fs, pm(nlevel)%fc )
   end subroutine mesh_metrics 
 
@@ -94,7 +96,7 @@ module Mesh
     implicit none
     type(polyMesh), intent(inout) :: pm
     !!! Connectivity
-    allocate( pm%facelr( _lr, pm%nface ),&
+    allocate( pm%facelr( _lr, pm%nface ), &
               pm%facenode( _quadp1, pm%nface ), &
               pm%patchdata( _pproc, pm%npatch) )
     !!! Metrics
@@ -102,7 +104,7 @@ module Mesh
               pm%cc( _dim, pm%ncell ), &
               pm%cv( pm%ncell ), &
               pm%dn( _dim, pm%nface ), &
-              pm%fc( _dim, pm%nface ),&
+              pm%fc( _dim, pm%nface ), &
               pm%fs( pm%nface ) )
     !!! Parallel data
     if( pm%parallel .eqv. .true. ) then
@@ -112,14 +114,14 @@ module Mesh
     end if
   end subroutine allocate_pm
 
-  subroutine mesh_metrics_tapenade(&
-    nnode, nface, ninternalface, ncell,&
-    x, facelr, facenode,&
+  subroutine mesh_metrics_tapenade( &
+    nnode, nface, ninternalface, ncell, &
+    x, facelr, facenode, &
     cv, cc, dn, fs, fc )
     implicit none
-    integer, intent(in) :: nnode, nface, ninternalface, ncell
+    integer, intent(in)      :: nnode, nface, ninternalface, ncell
     real(kind=8), intent(in) :: x(_dim, nnode)
-    integer, intent(in) :: facelr(_lr, nface), facenode(_quadp1, nface)
+    integer, intent(in)      :: facelr(_lr, nface), facenode(_quadp1, nface)
     real(kind=8), intent(in) :: cv(ncell), cc(_dim, ncell)
     real(kind=8), intent(in) :: dn(_dim, nface), fs(nface), fc(_dim, nface)
 
