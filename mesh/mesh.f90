@@ -4,19 +4,27 @@ module Mesh
   !!! Comprises of patchstart, patchsize, patchtype, patchneigh
   integer, parameter :: _pstart = 1, _psize = 2, _ptype = 3, _pproc = 4
   integer, parameter :: _dim = 3, _lr = 2
-  integer, parameter :: _tri = 3, _quad = 4
- 
+  integer, parameter :: _tri = 3, _quad = 4, _quadp1 = 5
+  integer, parameter :: _enable_parallel = 0 
+
   type polyMesh
-    integer :: nnode, nface, ninternalface,
-               ncell, npatch, ilevel, nlevel
+    !!! Sizes
+    integer :: nnode = 0, nface = 0, ninternalface = 0,
+               ncell = 0, npatch = 0, ilevel = 0, nlevel = 0
+    !!! Connecivity/Topology
     integer, dimension(:,:), allocatable :: facelr
     integer, dimension(:,:), allocatable :: facenode
     integer, dimension(:,:), allocatable :: patchdata
     !!! Metrics
     !!! xyz coords, cell-center, unit-normal, face-center
-    real(kind=8), dimension(:,:) :: x, cc, dn, fc
     !!! cell-volume, face-area
-    real(kind=8), dimension(:) :: cv, fs
+    real(kind=8), dimension(:,:) :: x, cc, dn, fc
+    real(kind=8), dimension(:)   :: cv, fs
+    !!! Parallel run (global numbering of local entities)
+    logical                            :: parallel = .false.
+    integer, dimension(:), allocatable :: cellgid, nodegid, facegid
+    !!! Multigrid variables
+
   end type polyMesh
 
   type crsGraph
@@ -36,6 +44,9 @@ module Mesh
  
     !!! Make the meshes aware of the multi-grid 
     do ilvl = 1, nlevel
+      if( ipar .eq. _enable_parallel ) then
+        pm(ilvl)%parallel = .true.
+      end if
       pm(ilvl)%nlevel = nlevel
       pm(ilvl)%ilevel = ilvl
     end do
@@ -73,9 +84,9 @@ module Mesh
     !!! Tapenade diff function
     call mesh_metrics_tapenade&
          ( pm(nlevel)%nnode, pm(nlevel)%nface,&
-           pm(nlevel)%ninternalface,&
+           pm(nlevel)%ninternalface, pm(nlevel)%ncell,&
            pm(nlevel)%x, pm(nlevel)%facelr,&
-           pm(nlevel)%facenode, pm(nlevel)%cv,&
+           pm(nlevel)%facenode, pm(nlevel)%cv, pm(nlevel)%cc,&
            pm(nlevel)%dn, pm(nlevel)%fs, pm(nlevel)%fc )
   end subroutine mesh_metrics 
 
@@ -84,7 +95,7 @@ module Mesh
     type(polyMesh), intent(inout) :: pm
     !!! Connectivity
     allocate( pm%facelr( _lr, pm%nface ),&
-              pm%facenode( _quad + 1, pm%nface ), &
+              pm%facenode( _quadp1, pm%nface ), &
               pm%patchdata( _pproc, pm%npatch) )
     !!! Metrics
     allocate( pm%x( _dim, pm%nnode ), &
@@ -93,7 +104,26 @@ module Mesh
               pm%dn( _dim, pm%nface ), &
               pm%fc( _dim, pm%nface ),&
               pm%fs( pm%nface ) )
+    !!! Parallel data
+    if( pm%parallel .eqv. .true. ) then
+      allocate( pm%cellgid( pm%ncell ), &
+                pm%facegid( pm%nface ), &
+                pm%nodegid( pm%nnode ) )
+    end if
   end subroutine allocate_pm
+
+  subroutine mesh_metrics_tapenade(&
+    nnode, nface, ninternalface, ncell,&
+    x, facelr, facenode,&
+    cv, cc, dn, fs, fc )
+    implicit none
+    integer, intent(in) :: nnode, nface, ninternalface, ncell
+    real(kind=8), intent(in) :: x(_dim, nnode)
+    integer, intent(in) :: facelr(_lr, nface), facenode(_quadp1, nface)
+    real(kind=8), intent(in) :: cv(ncell), cc(_dim, ncell)
+    real(kind=8), intent(in) :: dn(_dim, nface), fs(nface), fc(_dim, nface)
+
+  end subroutine mesh_metrics_tapenade
 
 end module Mesh
 
