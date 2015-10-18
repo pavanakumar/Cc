@@ -1,4 +1,4 @@
-#include "of_reader.h"
+#include "ofreader.h"
 
 /******************************************
    Opens the mesh
@@ -67,7 +67,8 @@ void get_pm_faces( int *nface, int *ninternalface,
     facelr[ i * 2 + 1 ] = global_of_mesh->mesh()->neighbour()[i] + 1; // +1 FORTRAN indexing
   } 
   /// Patch faces only have owner and no neighbour cell
-  for( int i=0; i<*npatch; ++i ) {
+  int npatch = global_of_mesh->mesh()->boundaryMesh().size();
+  for( int i=0; i<npatch; ++i ) {
     int start = global_of_mesh->mesh()->boundaryMesh()[i].start();
     int size  = global_of_mesh->mesh()->boundaryMesh()[i].size();
     for( int j=0; j<size; ++j ) {
@@ -99,26 +100,26 @@ void get_pm_patches( int *npatch, int *patchdata ) {
     patchdata[ i * 4 + 1 ] = global_of_mesh->mesh()->boundaryMesh()[i].size();
     patchdata[ i * 4 + 3 ] = 0; // Default value is 0 for processor neighbour
     ////  BC type  /////
-    if( basicTypes == "wall" )
+    if( basicTypes[i] == "wall" )
       patchdata[ i * 4 + 2 ] = _wall_bc;
-    else if( basicTypes == "symmetryPlane" )
+    else if( basicTypes[i] == "symmetryPlane" )
       patchdata[ i * 4 + 2 ] = _symmetry_bc;
-    else if( basicTypes == "patch" ) {  /// specially treat inlet/outlet/riemann
-      if( physicalType == "riemann" ) {
+    else if( basicTypes[i] == "patch" ) {  /// specially treat inlet/outlet/riemann
+      if( physicalTypes[i] == "riemann" ) {
         patchdata[ i * 4 + 2 ] = _riemann_bc;
-      }else if( physicalType == "inlet" ) {
+      }else if( physicalTypes[i] == "inlet" ) {
         patchdata[ i * 4 + 2 ] = _inlet_bc;
-      }else if( physicalType == "outlet" ) {
+      }else if( physicalTypes[i] == "outlet" ) {
         patchdata[ i * 4 + 2 ] = _outlet_bc;
       }
       else {
-        Foam::Info << "Unknown physical patch type \"" << physicalTypes << "\"\n";
-        if( physicalTypes == "" )
+        Foam::Info << "Unknown physical patch type \"" << physicalTypes[i] << "\"\n";
+        if( physicalTypes[i] == "" )
           Foam::Info << "Did you forget to specify a physicalType in constant\\polyMesh\\boundary for patch \"" << patchName << "\"?\n";
         Foam::FatalError.exit();
       }
     }
-    else if( basicTypes == "processor" ) {
+    else if( basicTypes[i] == "processor" ) {
       patchdata[ i * 4 + 2 ] = _processor_bc;
       processorPolyPatch &myProcPatch = 
         const_cast<processorPolyPatch &>
@@ -130,7 +131,7 @@ void get_pm_patches( int *npatch, int *patchdata ) {
       patchdata[ i * 4 + 3 ] = myProcPatch.neighbProcNo();
     }
     else {
-      Foam::Info << "Unsupported bc type " << basicTypes << "\n";
+      Foam::Info << "Unsupported bc type " << basicTypes[i] << "\n";
       Foam::FatalError.exit();
     }
   }
