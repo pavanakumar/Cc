@@ -1,0 +1,58 @@
+#!/bin/bash
+
+######### Add your inputs ######
+OPENFOAM_ROOT=$HOME/OpenFOAM/OpenFOAM-2.3.1
+################################
+
+SRC_DIR=`pwd`
+OF_SRC_DIR=$SRC_DIR/mesh
+
+#### Creates the OpenFOAM make files
+of_makefile()
+{
+  if [ ! -e "$SRC_DIR/Make" ]; then
+    echo "Creating Make folder"
+    mkdir $SRC_DIR/Make
+  fi
+  #####  Create Make/files
+  echo "$OF_SRC_DIR/ofreader.cpp" > $SRC_DIR/Make/files
+  echo "LIB = $SRC_DIR/libCc_ofreader" >> $SRC_DIR/Make/files
+  #####  Create Make/options
+  echo "EXE_INC = \\" > $SRC_DIR/Make/options
+  echo "-g -I\$(LIB_SRC)/finiteVolume/lnInclude \\" >> $SRC_DIR/Make/options
+  echo "-I\$(LIB_SRC)/meshTools/lnInclude \\" >> $SRC_DIR/Make/options
+  echo "-I$SRC_DIR/mesh" >> $SRC_DIR/Make/options
+  echo "" >> $SRC_DIR/Make/options
+  echo "" >> $SRC_DIR/Make/options
+  echo "EXE_LIBS = \\" >> $SRC_DIR/Make/options
+  echo "  -lfiniteVolume -lmeshTools" >> $SRC_DIR/Make/options
+  echo "" >> $SRC_DIR/Make/options
+}
+
+write_of_make_inc()
+{
+  echo "OF_BASHRC=$OPENFOAM_ROOT/etc/bashrc" >  $SRC_DIR/make.of.inc
+  echo "OF_LDFLAGS=-L$SRC_DIR -L$FOAM_LIBBIN" >> $SRC_DIR/make.of.inc
+  echo "OF_LIBS=-lCc_ofreader -lfiniteVolume" >> $SRC_DIR/make.of.inc 
+}
+
+##### Create the OpenFOAM Make script ###
+if [ "$OPENFOAM_ROOT" ]; then
+  if [ -f "$OPENFOAM_ROOT/etc/bashrc" ]; then
+    source $OPENFOAM_ROOT/etc/bashrc
+    of_makefile
+    write_of_make_inc
+    wclean; wmake
+    cd $SRC_DIR
+  else
+    echo "The OpenFOAM bashrc script does not exist at $OPENFOAM_ROOT/etc/bashrc"
+    echo "Check the path set in OPENFOAM_ROOT"
+    exit 0
+  fi
+else
+  echo "Set the OPENFOAM_ROOT variable to the OpenFOAM source"
+  exit 0
+fi
+
+
+
