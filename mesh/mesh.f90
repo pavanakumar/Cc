@@ -35,6 +35,16 @@ module Mesh
 
   contains
 
+  subroutine create_mg_pm( nlevel, pm, ipar )
+    implicit none
+    integer, intent(in)           :: nlevel, ipar
+    type(polyMesh), intent(inout) :: pm(nlevel)
+ 
+    call reader_of( nlevel, pm, ipar )
+    call create_mg_levels( nlevel, pm, ipar )
+
+  end subroutine create_mg_pm
+
   !!! Read the polyMesh data from OpenFOAM reader
   !!! uses parmgen and creates the multigrid levels
   subroutine reader_of( nlevel, pm, ipar )
@@ -43,8 +53,7 @@ module Mesh
     integer, intent(in)           :: nlevel, ipar
     type(polyMesh), intent(inout) :: pm(nlevel)
     !!! Local variables
-    integer :: ilvl, ilvl_c
-    type(crsGraph) :: gr
+    integer :: ilvl
  
     !!! Make the meshes aware of the multi-grid 
     do ilvl = 1, nlevel
@@ -66,6 +75,22 @@ module Mesh
     call get_pm_patches( pm(nlevel)%npatch, pm(nlevel)%patchdata )
     !!! Calculate the metrics
     call mesh_metrics( pm(nlevel) )
+    call close_of_mesh()
+  end subroutine reader_of
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!! Create the Multi-Grid levels  !!
+  !!!! using mgridgen wrapper        !!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine create_mg_levels( nlevel, pm, ipar )
+    use Wrap
+    implicit none
+    integer, intent(in)           :: nlevel, ipar
+    type(polyMesh), intent(inout) :: pm(nlevel)
+    !!! Local variables
+    integer :: ilvl, ilvl_c
+    type(crsGraph) :: gr
+ 
     !!! Multi-grid mgridgen
     do ilvl = nlevel, 2, -1
       ilvl_c = ilvl - 1
@@ -77,9 +102,8 @@ module Mesh
 !      call deallocate_graph( gr )
 !      call mesh_metrics( pm(ilvl_c) ) 
     end do
-    call close_of_mesh()
 
-  end subroutine reader_of
+  end subroutine create_mg_levels
 
   !!! Simpler wrapper for metrics
   subroutine mesh_metrics( pm )

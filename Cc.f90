@@ -6,7 +6,7 @@ program Cc
   integer :: ipar = enable_parallel_ + 1
   type(polyMesh), dimension(nlevel) :: pm
   
-  call reader_of( nlevel, pm, ipar )
+  call create_mg_pm( nlevel, pm, ipar )
 
 
 end program Cc

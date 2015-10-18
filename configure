@@ -40,7 +40,7 @@ write_Cc_script()
 {
   echo "#!/bin/bash" > $SRC_DIR/Cc
   echo "source $OPENFOAM_ROOT/etc/bashrc" >> $SRC_DIR/Cc
-  echo "$SRC_DIR/Cc.phony $1 $2" >> $SRC_DIR/Cc
+  echo "$SRC_DIR/Cc.x $1 $2" >> $SRC_DIR/Cc
   chmod +x $SRC_DIR/Cc
 }
 
