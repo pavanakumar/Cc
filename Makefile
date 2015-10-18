@@ -25,3 +25,4 @@ distclean:
 	-rm -f Cc.x
 	-rm -rf Make lnInclude
 	-rm -f libCc_ofreader*
+	-rm -f ./mesh/*.dep
