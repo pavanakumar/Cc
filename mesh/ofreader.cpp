@@ -1,10 +1,10 @@
 #include "of_reader.h"
 
-/*************************************
+/******************************************
    Opens the mesh
-   1. Serial   if ipar != __enable_par
-   2/ Parallel if ipar == __enable_par
-***************************************/
+   1. Serial   if ipar != _enable_parallel
+   2/ Parallel if ipar == _enable_parallel
+*******************************************/
 void init_of_mesh( int *ipar ) { 
   char *arg[] = 
   {
@@ -12,7 +12,7 @@ void init_of_mesh( int *ipar ) {
     const_cast<char *>("-parallel\0")
   };
   /// Init the OpenFOAM mesh
-  if( *ipar == __enable_par )
+  if( *ipar == _enable_parallel )
     global_of_mesh = new __c_ofreader( 2, arg );
   else
     global_of_mesh = new __c_ofreader( 1, arg );
@@ -91,6 +91,10 @@ void get_pm_patches( int *npatch, int *patchdata ) {
   Foam::wordList physicalTypes =
         global_of_mesh->mesh()->boundaryMesh().physicalTypes();
   for( int i=0; i<*npatch; ++i ) {
+    /// Get patch name for debugging purpose
+    Foam::word patchName =
+          global_of_mesh->mesh()->boundaryMesh()[i].name(); 
+    //// Fix the patch values
     patchdata[ i * 4 + 0 ] = global_of_mesh->mesh()->boundaryMesh()[i].start() + 1; // +1 FORTRAN indexing
     patchdata[ i * 4 + 1 ] = global_of_mesh->mesh()->boundaryMesh()[i].size();
     patchdata[ i * 4 + 3 ] = 0; // Default value is 0 for processor neighbour
@@ -99,8 +103,21 @@ void get_pm_patches( int *npatch, int *patchdata ) {
       patchdata[ i * 4 + 2 ] = _wall_bc;
     else if( basicTypes == "symmetryPlane" )
       patchdata[ i * 4 + 2 ] = _symmetry_bc;
-    else if( basicTypes == "patch" )
-      patchdata[ i * 4 + 2 ] = _riemann_bc;
+    else if( basicTypes == "patch" ) {  /// specially treat inlet/outlet/riemann
+      if( physicalType == "riemann" ) {
+        patchdata[ i * 4 + 2 ] = _riemann_bc;
+      }else if( physicalType == "inlet" ) {
+        patchdata[ i * 4 + 2 ] = _inlet_bc;
+      }else if( physicalType == "outlet" ) {
+        patchdata[ i * 4 + 2 ] = _outlet_bc;
+      }
+      else {
+        Foam::Info << "Unknown physical patch type \"" << physicalTypes << "\"\n";
+        if( physicalTypes == "" )
+          Foam::Info << "Did you forget to specify a physicalType in constant\\polyMesh\\boundary for patch \"" << patchName << "\"?\n";
+        Foam::FatalError.exit();
+      }
+    }
     else if( basicTypes == "processor" ) {
       patchdata[ i * 4 + 2 ] = _processor_bc;
       processorPolyPatch &myProcPatch = 

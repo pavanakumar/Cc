@@ -10,8 +10,12 @@
 #include <sstream>
 #include <fstream>
 
-const int __enable_par 0
-
+/**********************************************************
+              Constants from FORTRAN code
+**********************************************************/
+const int _enable_parallel = 0
+const int _processor_bc = 0, _wall_bc = 1, _symmetry_bc = 2,
+          _inlet_bc = 3, _outlet_bc = 4, _riemann_bc = 5
 /**********************************************************
    Function prototypes for the FORTRAN wrapper
 **********************************************************/

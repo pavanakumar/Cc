@@ -7,7 +7,7 @@ module Mesh
   integer, parameter :: _tri = 3, _quad = 4, _quadp1 = 5
   integer, parameter :: _enable_parallel = 0
   integer, parameter :: _processor_bc = 0, _wall_bc = 1, _symmetry_bc = 2, &
-                        _inflow_bc = 3, _outflow_bc = 4, _riemann_bc = 5
+                        _inlet_bc = 3, _outlet_bc = 4, _riemann_bc = 5
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   type polyMesh
     !!! Sizes
