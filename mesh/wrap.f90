@@ -13,7 +13,7 @@ module Wrap
     subroutine get_pm_sizes( nnode, nface, ninternalface, ncell, npatch ) bind(C)
       use iso_c_binding
       implicit none
-      integer(kind=c_int) :: nnode, nface, ncell, npatch
+      integer(kind=c_int) :: nnode, nface, ninternalface, ncell, npatch
     end subroutine get_pm_sizes
 
     subroutine get_pm_nodes( nnode, x ) bind(C)
@@ -35,7 +35,7 @@ module Wrap
       implicit none
       integer(kind=c_int) :: npatch
       integer(kind=c_int), dimension(*) :: patchdata
-    end subroutine get_pm_faces
+    end subroutine get_pm_patches
 
     subroutine close_of_mesh() bind(C)
       use iso_c_binding

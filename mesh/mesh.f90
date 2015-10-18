@@ -2,12 +2,12 @@ module Mesh
   implicit none
 !!!!!!!!!!!!  CONSTANTS  !!!!!!!!!!!!!
   !!! Comprises of patchstart, patchsize, patchtype, patchneigh
-  integer, parameter :: _pstart = 1, _psize = 2, _ptype = 3, _pproc = 4
-  integer, parameter :: _dim = 3, _lr = 2
-  integer, parameter :: _tri = 3, _quad = 4, _quadp1 = 5
-  integer, parameter :: _enable_parallel = 0
-  integer, parameter :: _processor_bc = 0, _wall_bc = 1, _symmetry_bc = 2, &
-                        _inlet_bc = 3, _outlet_bc = 4, _riemann_bc = 5
+  integer, parameter :: pstart_ = 1, psize_ = 2, ptype_ = 3, pproc_ = 4
+  integer, parameter :: dim_ = 3, lr_ = 2
+  integer, parameter :: tri_ = 3, quad_ = 4, quadp1_ = 5
+  integer, parameter :: enable_parallel_ = 0
+  integer, parameter :: processor_bc_ = 0, wall_bc_ = 1, symmetry_bc_ = 2, &
+                        inlet_bc_ = 3, outlet_bc_ = 4, riemann_bc_ = 5
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   type polyMesh
     !!! Sizes
@@ -20,8 +20,8 @@ module Mesh
     !!! Metrics
     !!! xyz coords, cell-center, unit-normal, face-center
     !!! cell-volume, face-area
-    real(kind=8), dimension(:,:) :: x, cc, dn, fc
-    real(kind=8), dimension(:)   :: cv, fs
+    real(kind=8), dimension(:,:), allocatable :: x, cc, dn, fc
+    real(kind=8), dimension(:), allocatable   :: cv, fs
     !!! Parallel run (global numbering of local entities)
     logical                            :: parallel = .false.
     integer, dimension(:), allocatable :: cellgid, nodegid, facegid
@@ -32,6 +32,8 @@ module Mesh
   type crsGraph
     integer, dimension(:), allocatable :: xadj, adjncy, part 
   end type crsGraph
+
+  contains
 
   !!! Read the polyMesh data from OpenFOAM reader
   !!! uses parmgen and creates the multigrid levels
@@ -46,7 +48,7 @@ module Mesh
  
     !!! Make the meshes aware of the multi-grid 
     do ilvl = 1, nlevel
-      if( ipar .eq. _enable_parallel ) then
+      if( ipar .eq. enable_parallel_ ) then
         pm(ilvl)%parallel = .true.
       end if
       pm(ilvl)%nlevel = nlevel
@@ -55,8 +57,8 @@ module Mesh
     !!! Read in the finest mesh from OpenFOAM    
     call init_of_mesh( ipar )
     call get_pm_sizes( pm(nlevel)%nnode, pm(nlevel)%nface, &
-                       pm%(nlevel)%ninternalface, &
-                       pm%(nlevel)%ncell, pm(nlevel)%npatch )
+                       pm(nlevel)%ninternalface, &
+                       pm(nlevel)%ncell, pm(nlevel)%npatch )
     call allocate_pm( pm(nlevel) )
     call get_pm_nodes( pm(nlevel)%nnode, pm(nlevel)%x )
     call get_pm_faces( pm(nlevel)%nface, pm(nlevel)%ninternalface, &
@@ -85,26 +87,26 @@ module Mesh
     type( polyMesh ) :: pm
     !!! Tapenade diff function
     call mesh_metrics_tapenade &
-         ( pm(nlevel)%nnode, pm(nlevel)%nface, &
-           pm(nlevel)%ninternalface, pm(nlevel)%ncell, &
-           pm(nlevel)%x, pm(nlevel)%facelr, &
-           pm(nlevel)%facenode, pm(nlevel)%cv, pm(nlevel)%cc, &
-           pm(nlevel)%dn, pm(nlevel)%fs, pm(nlevel)%fc )
+         ( pm%nnode, pm%nface, &
+           pm%ninternalface, pm%ncell, &
+           pm%x, pm%facelr, &
+           pm%facenode, pm%cv, pm%cc, &
+           pm%dn, pm%fs, pm%fc )
   end subroutine mesh_metrics 
 
   subroutine allocate_pm( pm )
     implicit none
     type(polyMesh), intent(inout) :: pm
     !!! Connectivity
-    allocate( pm%facelr( _lr, pm%nface ), &
-              pm%facenode( _quadp1, pm%nface ), &
-              pm%patchdata( _pproc, pm%npatch) )
+    allocate( pm%facelr( lr_, pm%nface ), &
+              pm%facenode( quadp1_, pm%nface ), &
+              pm%patchdata( pproc_, pm%npatch) )
     !!! Metrics
-    allocate( pm%x( _dim, pm%nnode ), &
-              pm%cc( _dim, pm%ncell ), &
+    allocate( pm%x( dim_, pm%nnode ), &
+              pm%cc( dim_, pm%ncell ), &
               pm%cv( pm%ncell ), &
-              pm%dn( _dim, pm%nface ), &
-              pm%fc( _dim, pm%nface ), &
+              pm%dn( dim_, pm%nface ), &
+              pm%fc( dim_, pm%nface ), &
               pm%fs( pm%nface ) )
     !!! Parallel data
     if( pm%parallel .eqv. .true. ) then
@@ -120,10 +122,10 @@ module Mesh
     cv, cc, dn, fs, fc )
     implicit none
     integer, intent(in)      :: nnode, nface, ninternalface, ncell
-    real(kind=8), intent(in) :: x(_dim, nnode)
-    integer, intent(in)      :: facelr(_lr, nface), facenode(_quadp1, nface)
-    real(kind=8), intent(in) :: cv(ncell), cc(_dim, ncell)
-    real(kind=8), intent(in) :: dn(_dim, nface), fs(nface), fc(_dim, nface)
+    real(kind=8), intent(in) :: x(dim_, nnode)
+    integer, intent(in)      :: facelr(lr_, nface), facenode(quadp1_, nface)
+    real(kind=8), intent(in) :: cv(ncell), cc(dim_, ncell)
+    real(kind=8), intent(in) :: dn(dim_, nface), fs(nface), fc(dim_, nface)
 
   end subroutine mesh_metrics_tapenade
 
