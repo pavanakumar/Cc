@@ -80,10 +80,11 @@ module Mesh
     implicit none
     real(kind=8),dimension(dim_),intent(in) :: r1, r2, r3, r4
     real(kind=8), intent(in)                :: eta, xi
-    real(kind=8),dimension(dim_)            :: func_1234
-    func_1234 = r_1234(r1, r2, r3, r4, xi, eta)
-    func_1234 = sum( func_1234 * func_1234 )
-    func_1234 = func_1234 * dS_1234(r1, r2, r3, r4, xi, eta)
+    real(kind=8),dimension(dim_)            :: temp, func_1234
+    real(kind=8)                            :: temp_dot
+    temp      = r_1234(r1, r2, r3, r4, xi, eta)
+    temp_dot  = sum( temp * temp )
+    func_1234 = temp_dot * dS_1234(r1, r2, r3, r4, xi, eta)
   end function func_1234
 
   subroutine create_mg_pm( nlevel, pm, ipar )
@@ -202,7 +203,7 @@ module Mesh
     real(kind=8), intent(inout) :: cv(ncell), cc(dim_, ncell)
     real(kind=8), intent(inout) :: dn(dim_, nface), fs(nface), fc(dim_, nface)
     !!! Local variables
-    integer :: iface, inode, i, il, ir
+    integer :: iface, inode, i, il, ir, icell
     real(kind=8) :: r1(dim_), r2(dim_), r3(dim_), r4(dim_), fvol, fvolc(dim_)
 
     !!! Zero out everything    
@@ -250,12 +251,16 @@ module Mesh
         stop
       end if
 !!! Add CC/CV contribution of face
-      cv(il)   = cv(il)   - fvol
-      cc(:,il) = cc(:,il) - fvolc
+      cv(il)   = cv(il)   + fvol
+      cc(:,il) = cc(:,il) + fvolc
       if( iface .le. ninternalface ) then
-        cv(ir)   = cv(ir)   + fvol
-        cc(:,ir) = cc(:,ir) + fvolc
+        cv(ir)   = cv(ir)   - fvol
+        cc(:,ir) = cc(:,ir) - fvolc
       end if
+    end do
+    do icell = 1, ncell
+      cc(:,icell) = 0.50d0 * cc(:,icell) / cv(icell)
+      write(*,*) cc(:,icell), cv(icell)
     end do
   end subroutine mesh_metrics_tapenade
 
