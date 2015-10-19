@@ -238,7 +238,7 @@ module Mesh
         fs(iface)    = sqrt( sum( dn(:, iface) * dn(:, iface) ) )
         dn(:, iface) = dn(:, iface) / fs(iface)
         !!! Face volume contribution
-        fvol  = oneby12_ * sum( (r1 + r2) * cross_prod((r1 + r2), (r3 + r4)) )
+        fvol  = oneby12_ * sum( (r2 + r3) * cross_prod((r1 + r2), (r3 + r4)) )
         !!! Face cell centroid contribution (Gauss quadrture)
         fvolc = 0.250d0 * ( func_1234(r1, r2, r3, r4, xi1_, eta1_) + &
                             func_1234(r1, r2, r3, r4, xi1_, eta2_) + &
@@ -250,14 +250,13 @@ module Mesh
         stop
       end if
 !!! Add CC/CV contribution of face
-      cv(il)   = cv(il)   + fvol
-      cc(:,il) = cc(:,il) + fvolc
+      cv(il)   = cv(il)   - fvol
+      cc(:,il) = cc(:,il) - fvolc
       if( iface .le. ninternalface ) then
-        cv(ir)   = cv(ir)   - fvol
-        cc(:,ir) = cc(:,ir) - fvolc
+        cv(ir)   = cv(ir)   + fvol
+        cc(:,ir) = cc(:,ir) + fvolc
       end if
     end do
-
   end subroutine mesh_metrics_tapenade
 
 end module Mesh
