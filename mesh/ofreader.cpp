@@ -146,9 +146,23 @@ void check_metrics
   int *ncell, int *nface, double *cv,
   double *cc, double *fc, double *fs,
   double *dn ) {
-
-
-
+  std::cerr << "Epsilon = " << std::numeric_limits<double>::epsilon() << "\n";
+  std::cerr << "Round err  = " << std::numeric_limits<double>::round_error() << "\n";
+  const double eps = 1.0e-10;//std::numeric_limits<double>::epsilon() * 10.0;
+  for( int i=0; i<*ncell; ++i ) {
+    double cv_chk = std::abs( (cv[i] - global_of_mesh->mesh()->V()[i]) / cv[i] );
+    if( cv_chk > eps ) {
+      Foam::Info << "Error: Metrics not calculated correctly (cell volume) : "
+                 << cv_chk << "\n";
+    }
+    for( int j=0; j<3; ++j ) {
+      cv_chk = std::abs( (cc[i * 3 + j] - global_of_mesh->mesh()->C()[i][j]) );// / cc[i * 3 + j] );
+      if( cv_chk > eps ) {
+        Foam::Info << "Error: Metrics not calculated correctly (cell centroid) : "
+                   << cv_chk << " " << cc[i * 3 + j]  << "\n";
+      }
+    }
+  }
 }
 
 

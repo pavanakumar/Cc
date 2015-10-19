@@ -9,6 +9,8 @@
 #include <map>
 #include <sstream>
 #include <fstream>
+#include<cmath>
+#include<limits>
 
 /**********************************************************
               Constants from FORTRAN code
