@@ -1,7 +1,12 @@
 module Constants
-  real(kind=8), parameter :: oneby3_ = 0.33333333333333333333333333333333333333d0
-  real(kind=8), parameter :: oneby6_ = 0.16666666666666666666666666666666666666666d0
+  real(kind=8), parameter :: oneby3_  = 0.33333333333333333333333333333333333333d0
+  real(kind=8), parameter :: oneby6_  = 0.16666666666666666666666666666666666666666d0
   real(kind=8), parameter :: oneby12_ = 0.0833333333333333333333333333333333333333d0
+  !!!! Quadrature points
+  real(kind=8), parameter :: xi1_     = 0.788675134594812882254574390250978727823800d0
+  real(kind=8), parameter :: xi2_     = 0.211324865405187117745425609749021272176200d0
+  real(kind=8), parameter :: eta1_    = 0.788675134594812882254574390250978727823800d0
+  real(kind=8), parameter :: eta2_    = 0.211324865405187117745425609749021272176200d0
 end module Constants
 
 module Mesh
@@ -50,6 +55,35 @@ module Mesh
                                                c2 = (/3,1,2/)
     cross_prod = x(c1) * y(c2) - y(c1) * x(c2)
   end function cross_prod
+
+  function r_1234(r1, r2, r3, r4, xi, eta)
+    implicit none
+    real(kind=8),dimension(dim_),intent(in) :: r1, r2, r3, r4
+    real(kind=8), intent(in)                :: eta, xi
+    real(kind=8),dimension(dim_)            :: r_1234
+    r_1234 = ( r1 * ( 1.0d0 - xi ) + r2 * xi ) * ( 1.0d0 - eta ) + &
+             ( r4 * ( 1.0d0 - xi ) + r3 * xi ) * eta
+  end function r_1234
+
+  function dS_1234(r1, r2, r3, r4, xi, eta)
+    implicit none
+    real(kind=8),dimension(dim_),intent(in) :: r1, r2, r3, r4
+    real(kind=8), intent(in)                :: eta, xi
+    real(kind=8),dimension(dim_)            :: dS_1234, temp1, temp2
+    temp1   = (r2 - r1) * ( 1.0d0 - eta ) + (r3 - r4) * eta
+    temp2   = (r4 - r1) * ( 1.0d0 - xi  ) + (r3 - r2) * xi
+    dS_1234 = cross_prod( temp1, temp2 )
+  end function dS_1234
+
+  function func_1234(r1, r2, r3, r4, xi, eta)
+    implicit none
+    real(kind=8),dimension(dim_),intent(in) :: r1, r2, r3, r4
+    real(kind=8), intent(in)                :: eta, xi
+    real(kind=8),dimension(dim_)            :: func_1234
+    func_1234 = r_1234(r1, r2, r3, r4, xi, eta)
+    func_1234 = sum( func_1234 * func_1234 )
+    func_1234 = func_1234 * dS_1234(r1, r2, r3, r4, xi, eta)
+  end function func_1234
 
   subroutine create_mg_pm( nlevel, pm, ipar )
     implicit none
@@ -177,6 +211,8 @@ module Mesh
       r1 = x(:, facenode( 2, iface ))
       r2 = x(:, facenode( 3, iface ))
       r3 = x(:, facenode( 4, iface ))
+      il = facelr(1, iface)
+      ir = facelr(2, iface)
 !!! Planar face
       if( facenode(1, iface) .eq. tri_ ) then
         !!! Face centroid
@@ -186,15 +222,11 @@ module Mesh
         fs(iface)    = sqrt( sum( dn(:, iface) * dn(:, iface) ) )
         dn(:, iface) = dn(:, iface) / fs(iface)
         !!! Face volume contribution
-        fvol   = oneby6_ * sum( r1 * cross_prod(r2, r3) )
-        il     = facelr(1, iface)
-        ir     = facelr(2, iface)
-        cv(il) = cv(il) + fvol
-        if( iface .le. ninternalface ) cv(ir) = cv(ir) - fvol
+        fvol  = oneby6_ * sum( r1 * cross_prod(r2, r3) )
         !!! Face cell centroid contribution
         fvolc = sum(r1 * r1) + sum(r2 * r2) + sum(r3 * r3) + &
                 sum(r1 * r2) + sum(r2 * r3) + sum(r1 * r3)
-        fvolc = fvolc * oneby12_ * (cross_prod(r2 - r1) * cross_prod(r3 - r1))
+        fvolc = fvolc * oneby12_ * cross_prod((r2 - r1), (r3 - r1))
 !!! Ruled face
       else if( facenode(1, iface) .eq. quad_ ) then
         r4 = x(:, facenode( 5, iface ))
@@ -205,16 +237,22 @@ module Mesh
         fs(iface)    = sqrt( sum( dn(:, iface) * dn(:, iface) ) )
         dn(:, iface) = dn(:, iface) / fs(iface)
         !!! Face volume contribution
-        fvol   = oneby12_ * sum( (r1 + r2) * cross_prod((r1 + r2), (r3 + r4)) )
-        il     = facelr(1, iface)
-        ir     = facelr(2, iface)
-        cv(il) = cv(il) + fvol
-        if( iface .le. ninternalface ) cv(ir) = cv(ir) - fvol
-        !!! Face cell centroid contribution
-        
+        fvol  = oneby12_ * sum( (r1 + r2) * cross_prod((r1 + r2), (r3 + r4)) )
+        !!! Face cell centroid contribution (Gauss quadrture)
+        fvolc = 0.250d0 * ( func_1234(r1, r2, r3, r4, xi1_, eta1_) + &
+                            func_1234(r1, r2, r3, r4, xi1_, eta2_) + &
+                            func_1234(r1, r2, r3, r4, xi2_, eta1_) + &
+                            func_1234(r1, r2, r3, r4, xi2_, eta2_) )
 !!! Error unknow face type
       else
 
+      end if
+!!! Add CC/CV contribution of face
+      cv(il)   = cv(il)   + fvol
+      cc(:,il) = cc(:,il) + fvolc
+      if( iface .le. ninternalface ) then
+        cv(ir)   = cv(ir)   - fvol
+        cc(:,ir) = cc(:,ir) - fvolc
       end if
     end do
 
