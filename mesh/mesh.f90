@@ -196,6 +196,7 @@ module Mesh
     nnode, nface, ninternalface, ncell, &
     x, facelr, facenode, &
     cv, cc, dn, fs, fc )
+    use Wrap
     implicit none
     integer, intent(in)         :: nnode, nface, ninternalface, ncell
     real(kind=8), intent(in)    :: x(dim_, nnode)
@@ -259,7 +260,7 @@ module Mesh
     do icell = 1, ncell
       cc(:,icell) = 0.50d0 * cc(:,icell) / cv(icell)
     end do
-
+    call check_metrics( ncell, nface, cv, cc, fc, fs, dn )
   end subroutine mesh_metrics_tapenade
 
 end module Mesh
