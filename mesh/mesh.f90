@@ -258,10 +258,8 @@ module Mesh
     end do
     do icell = 1, ncell
       cc(:,icell) = 0.50d0 * cc(:,icell) / cv(icell)
-      cv(icell)   = cv(icell)
-!      write(*,*) cc(:,icell), cv(icell)
-!      write(*,*) cv(icell)
     end do
+
   end subroutine mesh_metrics_tapenade
 
 end module Mesh
