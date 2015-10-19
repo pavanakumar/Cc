@@ -58,7 +58,7 @@ void get_pm_faces( int *nface, int *ninternalface,
     size = global_of_mesh->mesh()->faces()[i].size();
     facenodes[ i * 5 ] = size;
     for( int j=1; j <= size; ++j ) { /// Loop over number of face nodes
-      facenodes[ i * 5 + j ] = global_of_mesh->mesh()->faces()[i][j] + 1; // +1 FORTRAN indexing
+      facenodes[ i * 5 + j ] = global_of_mesh->mesh()->faces()[i][j-1] + 1; // +1 FORTRAN indexing
     }
   }
   /// Form facelr for all internal cells
