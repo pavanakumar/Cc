@@ -1,4 +1,11 @@
+module Constants
+  real(kind=8), parameter :: oneby3_ = 0.33333333333333333333333333333333333333d0
+  real(kind=8), parameter :: oneby6_ = 0.16666666666666666666666666666666666666666d0
+  real(kind=8), parameter :: oneby12_ = 0.0833333333333333333333333333333333333333d0
+end module Constants
+
 module Mesh
+  use Constants
   implicit none
 !!!!!!!!!!!!  CONSTANTS  !!!!!!!!!!!!!
   !!! Comprises of patchstart, patchsize, patchtype, patchneigh
@@ -34,6 +41,15 @@ module Mesh
   end type crsGraph
 
   contains
+
+  function cross_prod(x, y)
+    implicit none
+    real(kind=8),dimension(dim_),intent(in) :: x, y
+    real(kind=8),dimension(dim_)            :: cross_prod
+    integer, dimension(3), parameter        :: c1 = (/2,3,1/), &
+                                               c2 = (/3,1,2/)
+    cross_prod = x(c1) * y(c2) - y(c1) * x(c2)
+  end function cross_prod
 
   subroutine create_mg_pm( nlevel, pm, ipar )
     implicit none
@@ -145,11 +161,60 @@ module Mesh
     x, facelr, facenode, &
     cv, cc, dn, fs, fc )
     implicit none
-    integer, intent(in)      :: nnode, nface, ninternalface, ncell
-    real(kind=8), intent(in) :: x(dim_, nnode)
-    integer, intent(in)      :: facelr(lr_, nface), facenode(quadp1_, nface)
-    real(kind=8), intent(in) :: cv(ncell), cc(dim_, ncell)
-    real(kind=8), intent(in) :: dn(dim_, nface), fs(nface), fc(dim_, nface)
+    integer, intent(in)         :: nnode, nface, ninternalface, ncell
+    real(kind=8), intent(in)    :: x(dim_, nnode)
+    integer, intent(in)         :: facelr(lr_, nface), facenode(quadp1_, nface)
+    real(kind=8), intent(inout) :: cv(ncell), cc(dim_, ncell)
+    real(kind=8), intent(inout) :: dn(dim_, nface), fs(nface), fc(dim_, nface)
+    !!! Local variables
+    integer :: iface, inode, i
+    real(kind=8) :: r1(dim_), r2(dim_), r3(dim_), r4(dim_), fvol
+
+    !!! Zero out everything    
+    cv = 0.0d0; cc = 0.0d0
+    !!! Calculate the face centroids, area, and unit normal vector
+    do iface = 1, nface
+      r1 = x(:, facenode( 2, iface ))
+      r2 = x(:, facenode( 3, iface ))
+      r3 = x(:, facenode( 4, iface ))
+!!! Planar face
+      if( facenode(1, iface) .eq. tri_ ) then
+        !!! Face centroid
+        fc(:, iface) = oneby3_ * ( r1 + r2 + r3 )
+        !!! Face normal and area
+        dn(:, iface) = 0.50d0 * cross_prod( (r2 - r1), (r3 - r1) )
+        fs(iface) = sqrt( sum( dn(:, iface) * dn(:, iface) ) )
+        dn(:, iface) = dn(:, iface) / fs(iface)
+        !!! Face volume contribution
+        fvol = oneby6_ * ( sum( r1 * cross_prod(r2, r3) ) )
+        cv( facelr(1, iface) )   = cv( facelr(1, iface) ) + fvol
+        if( iface .le. ninternalface ) then
+          cv( facelr(1, iface) ) = cv( facelr(1, iface) ) - fvol
+        end if 
+        !!! Face cell centroid contribution
+
+!!! Ruled face
+      else if( facenode(1, iface) .eq. quad_ ) then
+        r4 = x(:, facenode( 5, iface ))
+        !!! Face centroid
+        fc(:, iface) = 0.250d0 * ( r1 + r2 + r3 + r4 )
+        !!! Face normal and area
+        dn(:, iface) = 0.50d0 * cross_prod( (r3 - r1), (r4 - r2) )
+        fs(iface) = sqrt( sum( dn(:, iface) * dn(:, iface) ) )
+        dn(:, iface) = dn(:, iface) / fs(iface)
+        !!! Face volume contribution
+        fvol = oneby12_ * sum( (r1 + r2) * (cross_prod((r1 + r2), (r3 + r4))) )
+        cv( facelr(1, iface) )   = cv( facelr(1, iface) ) + fvol
+        if( iface .le. ninternalface ) then
+          cv( facelr(2, iface) ) = cv( facelr(1, iface) ) - fvol
+        end if
+        !!! Face cell centroid contribution
+        
+!!! Error unknow face type
+      else
+
+      end if
+    end do
 
   end subroutine mesh_metrics_tapenade
 
