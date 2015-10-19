@@ -49,6 +49,16 @@ module Wrap
       implicit none
     end subroutine close_of_mesh
 
+    subroutine MGridGen_f90( nvtxs, xadj, vvol, vsurf,&
+                             adjncy, adjwgt, minsize, maxsize,&
+                             options, nmoves, nparts, part) bind(C)
+      use iso_c_binding
+      implicit none
+      integer(kind=c_int) :: nvtxs, minsize, maxsize, nmoves, nparts
+      integer(kind=c_int), dimension(*) :: xadj, adjncy, part, options
+      real(kind=c_double), dimension(*) :: vvol, vsurf, adjwgt
+    end subroutine MGridGen_f90
+
   end interface  
 
 end module Wrap
