@@ -1,12 +1,13 @@
+!!!! Mesh module
 module Constants
-  real(kind=8), parameter :: oneby3_  = 0.33333333333333333333333333333333333333d0
+  real(kind=8), parameter :: oneby3_  = 0.33333333333333333333333333333333333333333d0
   real(kind=8), parameter :: oneby6_  = 0.16666666666666666666666666666666666666666d0
-  real(kind=8), parameter :: oneby12_ = 0.0833333333333333333333333333333333333333d0
+  real(kind=8), parameter :: oneby12_ = 0.08333333333333333333333333333333333333333d0
   !!!! Quadrature points
-  real(kind=8), parameter :: xi1_     = 0.788675134594812882254574390250978727823800d0
-  real(kind=8), parameter :: xi2_     = 0.211324865405187117745425609749021272176200d0
-  real(kind=8), parameter :: eta1_    = 0.788675134594812882254574390250978727823800d0
-  real(kind=8), parameter :: eta2_    = 0.211324865405187117745425609749021272176200d0
+  real(kind=8), parameter :: xi1_     = 0.78867513459481288225457439025097872782380d0
+  real(kind=8), parameter :: xi2_     = 0.21132486540518711774542560974902127217620d0
+  real(kind=8), parameter :: eta1_    = 0.78867513459481288225457439025097872782380d0
+  real(kind=8), parameter :: eta2_    = 0.21132486540518711774542560974902127217620d0
 end module Constants
 
 module Mesh
@@ -245,7 +246,8 @@ module Mesh
                             func_1234(r1, r2, r3, r4, xi2_, eta2_) )
 !!! Error unknow face type
       else
-
+        write(*,*) "Something terribly wrong ... Cannot have more than 4 nodes for a face"
+        stop
       end if
 !!! Add CC/CV contribution of face
       cv(il)   = cv(il)   + fvol
