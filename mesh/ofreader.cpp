@@ -111,8 +111,9 @@ void get_pm_patches( int *npatch, int *patchdata ) {
         patchdata[ i * 4 + 2 ] = _inlet_bc;
       }else if( physicalTypes[i] == "outlet" ) {
         patchdata[ i * 4 + 2 ] = _outlet_bc;
-      }
-      else {
+      }else if( physicalTypes[i] == "symmetry" ) {
+        patchdata[ i * 4 + 2 ] = _symmetry_bc;
+      }else {
         Foam::Info << "Unknown physical patch type \"" << physicalTypes[i] << "\"\n";
         if( physicalTypes[i] == "" )
           Foam::Info << "Did you forget to specify a physicalType in constant\\polyMesh\\boundary for patch \"" << patchName << "\"?\n";
