@@ -39,17 +39,18 @@ Cc.x: $(OBJECTS) $(MG_OBJECTS)
 	$(FC) -c $^
 
 %.o: %.c
-	$(CC) -c -fPIC $^
+	$(CC) -I./mg -c -fPIC $^
 
 .PHONY : clean distclean
 clean:
-	-rm -f *.o *.mod
+	-@rm -f *.o *.mod
 
 distclean:
-	-rm -f *.o *.mod make.of.inc
-	-rm -f Cc
-	-rm -f Cc.x
-	-rm -rf Make lnInclude
-	-rm -f libCc_ofreader*
-	-rm -f ./mesh/*.dep
+	-@rm -f *.o *.mod
+	-@rm -f make.of.inc
+	-@rm -f Cc
+	-@rm -f Cc.x
+	-@rm -rf Make lnInclude
+	-@rm -f libCc_ofreader*
+	-@rm -f ./mesh/*.dep
 
