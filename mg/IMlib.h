@@ -8,26 +8,7 @@
 #ifndef _IMLIB_H_
 #define _IMLIB_H_
 
-
-/* Undefine the following #define in order to use short int as the idxtype */
-#define IDXTYPE_INT
-/* Undefine the following #define in order to use float as the realtype */
-/*#define TYPE_REAL*/
-
-/* Indexes are as long as integers for now */
-#ifdef IDXTYPE_INT
-typedef int idxtype;
-#else
-typedef short idxtype;
-#endif
-
-/* floats for now */
-#ifdef TYPE_REAL
-typedef float realtype;
-#else
-typedef double realtype;
-#endif
-
+#include "config.h"
 
 /*************************************************************************
 * Header file inclusion section
