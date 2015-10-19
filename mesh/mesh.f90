@@ -251,15 +251,15 @@ module Mesh
         stop
       end if
 !!! Add CC/CV contribution of face
-      cv(il)   = cv(il)   + fvol
-      cc(:,il) = cc(:,il) + fvolc
+      cv(il)   = cv(il)   - fvol
+      cc(:,il) = cc(:,il) - fvolc
       if( iface .le. ninternalface ) then
-        cv(ir)   = cv(ir)   - fvol
-        cc(:,ir) = cc(:,ir) - fvolc
+        cv(ir)   = cv(ir)   + fvol
+        cc(:,ir) = cc(:,ir) + fvolc
       end if
     end do
     do icell = 1, ncell
-      cc(:,icell) = 0.50d0 * cc(:,icell) / cv(icell)
+      cc(:,icell) = -0.50d0 * cc(:,icell) / cv(icell)
       write(*,*) cc(:,icell), cv(icell)
     end do
   end subroutine mesh_metrics_tapenade
