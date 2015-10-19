@@ -9,3 +9,4 @@ Make/*
 Cc.x
 Cc
 *.swp
+*.dSYM
