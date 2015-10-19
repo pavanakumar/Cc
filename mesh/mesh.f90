@@ -167,7 +167,7 @@ module Mesh
     real(kind=8), intent(inout) :: cv(ncell), cc(dim_, ncell)
     real(kind=8), intent(inout) :: dn(dim_, nface), fs(nface), fc(dim_, nface)
     !!! Local variables
-    integer :: iface, inode, i
+    integer :: iface, inode, i, il, ir
     real(kind=8) :: r1(dim_), r2(dim_), r3(dim_), r4(dim_), fvol
 
     !!! Zero out everything    
@@ -183,14 +183,14 @@ module Mesh
         fc(:, iface) = oneby3_ * ( r1 + r2 + r3 )
         !!! Face normal and area
         dn(:, iface) = 0.50d0 * cross_prod( (r2 - r1), (r3 - r1) )
-        fs(iface) = sqrt( sum( dn(:, iface) * dn(:, iface) ) )
+        fs(iface)    = sqrt( sum( dn(:, iface) * dn(:, iface) ) )
         dn(:, iface) = dn(:, iface) / fs(iface)
         !!! Face volume contribution
-        fvol = oneby6_ * ( sum( r1 * cross_prod(r2, r3) ) )
-        cv( facelr(1, iface) )   = cv( facelr(1, iface) ) + fvol
-        if( iface .le. ninternalface ) then
-          cv( facelr(1, iface) ) = cv( facelr(1, iface) ) - fvol
-        end if 
+        fvol   = oneby6_ * sum( r1 * cross_prod(r2, r3) )
+        il     = facelr(1, iface)
+        ir     = facelr(2, iface)
+        cv(il) = cv(il) + fvol
+        if( iface .le. ninternalface ) cv(ir) = cv(ir) - fvol
         !!! Face cell centroid contribution
 
 !!! Ruled face
@@ -200,14 +200,14 @@ module Mesh
         fc(:, iface) = 0.250d0 * ( r1 + r2 + r3 + r4 )
         !!! Face normal and area
         dn(:, iface) = 0.50d0 * cross_prod( (r3 - r1), (r4 - r2) )
-        fs(iface) = sqrt( sum( dn(:, iface) * dn(:, iface) ) )
+        fs(iface)    = sqrt( sum( dn(:, iface) * dn(:, iface) ) )
         dn(:, iface) = dn(:, iface) / fs(iface)
         !!! Face volume contribution
-        fvol = oneby12_ * sum( (r1 + r2) * (cross_prod((r1 + r2), (r3 + r4))) )
-        cv( facelr(1, iface) )   = cv( facelr(1, iface) ) + fvol
-        if( iface .le. ninternalface ) then
-          cv( facelr(2, iface) ) = cv( facelr(1, iface) ) - fvol
-        end if
+        fvol   = oneby12_ * sum( (r1 + r2) * cross_prod((r1 + r2), (r3 + r4)) )
+        il     = facelr(1, iface)
+        ir     = facelr(2, iface)
+        cv(il) = cv(il) + fvol
+        if( iface .le. ninternalface ) cv(ir) = cv(ir) - fvol
         !!! Face cell centroid contribution
         
 !!! Error unknow face type
