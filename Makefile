@@ -33,13 +33,13 @@ MG_OBJECTS=$(patsubst %.c, %.o, $(MG_SOURCE))
 all: Cc.x
 
 Cc.x: $(OBJECTS) $(MG_OBJECTS)
-	$(FC) $(OF_LDFLAGS) $(OBJECTS) $(MGOBJECTS) -o Cc.x $(OF_LIBS) -lm
+	$(FC) -g -ffpe-trap=invalid $(OF_LDFLAGS) $(OBJECTS) $(MGOBJECTS) -o Cc.x $(OF_LIBS) -lm
 
 %.o: %.f90
-	$(FC) -c -o $@ $<
+	$(FC) -g -fbounds-check -ffpe-trap=invalid -c -o $@ $<
 
 %.o: %.c
-	$(CC) -I./mg -fPIC -c -o $@ $<
+	$(CC) -g -I./mg -fPIC -ffpe-trap=invalid -c -o $@ $<
 
 .PHONY : clean distclean
 clean:
