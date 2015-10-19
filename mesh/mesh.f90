@@ -168,7 +168,7 @@ module Mesh
     real(kind=8), intent(inout) :: dn(dim_, nface), fs(nface), fc(dim_, nface)
     !!! Local variables
     integer :: iface, inode, i, il, ir
-    real(kind=8) :: r1(dim_), r2(dim_), r3(dim_), r4(dim_), fvol
+    real(kind=8) :: r1(dim_), r2(dim_), r3(dim_), r4(dim_), fvol, fvolc(dim_)
 
     !!! Zero out everything    
     cv = 0.0d0; cc = 0.0d0
@@ -192,7 +192,9 @@ module Mesh
         cv(il) = cv(il) + fvol
         if( iface .le. ninternalface ) cv(ir) = cv(ir) - fvol
         !!! Face cell centroid contribution
-
+        fvolc = sum(r1 * r1) + sum(r2 * r2) + sum(r3 * r3) + &
+                sum(r1 * r2) + sum(r2 * r3) + sum(r1 * r3)
+        fvolc = fvolc * oneby12_ * (cross_prod(r2 - r1) * cross_prod(r3 - r1))
 !!! Ruled face
       else if( facenode(1, iface) .eq. quad_ ) then
         r4 = x(:, facenode( 5, iface ))
