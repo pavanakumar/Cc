@@ -37,6 +37,13 @@ module Wrap
       integer(kind=c_int), dimension(*) :: patchdata
     end subroutine get_pm_patches
 
+    subroutine check_metrics( ncell, nface, cv, cc, fc, fs, dn ) bind(C)
+      use iso_c_binding
+      implicit none
+      integer(kind=c_int) :: ncell, nface
+      real(kind=c_double), dimension(*) :: cv, cc, fc, fs, dn
+    end subroutine check_metrics
+
     subroutine close_of_mesh() bind(C)
       use iso_c_binding
       implicit none

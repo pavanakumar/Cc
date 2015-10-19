@@ -138,3 +138,17 @@ void get_pm_patches( int *npatch, int *patchdata ) {
   }
 }
 
+/************************************************************
+   Check the mesh metrics if they are calculated correctly
+*************************************************************/
+void check_metrics
+( 
+  int *ncell, int *nface, double *cv,
+  double *cc, double *fc, double *fs,
+  double *dn ) {
+
+
+
+}
+
+

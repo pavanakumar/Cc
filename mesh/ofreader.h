@@ -26,6 +26,7 @@ extern "C" {
   void get_pm_nodes( int *nNodes, double *x );
   void get_pm_faces( int *nface, int *ninternalface, int *facelr, int *facenodes );
   void get_pm_patches( int *npatch, int *patchdata );
+  void check_metrics( int *ncell, int *nface, double *cv, double *cc, double *fc, double *fs, double *dn );
 };
 
 /**************************************
