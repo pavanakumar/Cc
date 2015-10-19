@@ -33,20 +33,21 @@ MG_OBJECTS=$(patsubst %.c, %.o, $(MG_SOURCE))
 all: Cc.x
 
 Cc.x: $(OBJECTS) $(MG_OBJECTS)
-	$(FC) $(OF_LDFLAGS) *.o -o Cc.x $(OF_LIBS) -lm
+	$(FC) $(OF_LDFLAGS) $(OBJECTS) $(MGOBJECTS) -o Cc.x $(OF_LIBS) -lm
 
 %.o: %.f90
-	$(FC) -c $^
+	$(FC) -c -o $@ $<
 
 %.o: %.c
-	$(CC) -I./mg -c -fPIC $^
+	$(CC) -I./mg -fPIC -c -o $@ $<
 
 .PHONY : clean distclean
 clean:
 	-@rm -f *.o *.mod
+	-@rm -f mesh/*.o mesh/*.mod
+	-@rm -f mg/*.o mg/*.mod
 
-distclean:
-	-@rm -f *.o *.mod
+distclean: clean
 	-@rm -f make.of.inc
 	-@rm -f Cc
 	-@rm -f Cc.x
