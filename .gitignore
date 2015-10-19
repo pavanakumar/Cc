@@ -4,3 +4,5 @@ lnInclude/*
 *.dylib
 *.so
 *.dep
+make.of.inc
+Make/*
