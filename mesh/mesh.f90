@@ -147,9 +147,10 @@ module Mesh
     do ilvl = nlevel, 2, -1
       ilvl_c = ilvl - 1
 !      call allocate_graph( pm(ilvl), gr )
-!      call form_graph( pm(ilvl), gr )
-!      call mgridgen( gr%xadj, gr%adjncy, gr%part, pm(ilvl)%cv, &
+!      call create_graph( pm(ilvl), gr )
+!      call create_mg( gr%xadj, gr%adjncy, gr%part, pm(ilvl)%cv, &
 !                      pm(ilvl)%fs, pm(ilvl)%patchdata )
+!      call fix_mg_degeneracy( pm(ilvl), gr%part )
 !      call fine_to_coarse( pm(ilvl), pm(ilvl_c), gr%part )
 !      call deallocate_graph( gr )
 !      call mesh_metrics( pm(ilvl_c) ) 
