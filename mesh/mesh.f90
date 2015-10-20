@@ -3,7 +3,7 @@ module Constants
   real(kind=8), parameter :: oneby3_  = 0.33333333333333333333333333333333333333333d0
   real(kind=8), parameter :: oneby6_  = 0.16666666666666666666666666666666666666666d0
   real(kind=8), parameter :: oneby12_ = 0.08333333333333333333333333333333333333333d0
-  !!!! Quadrature points
+  !!!! Quadrature points (for cell-centroid)
   real(kind=8), parameter :: xi1_     = 0.78867513459481288225457439025097872782380d0
   real(kind=8), parameter :: xi2_     = 0.21132486540518711774542560974902127217620d0
   real(kind=8), parameter :: eta1_    = 0.78867513459481288225457439025097872782380d0
@@ -16,7 +16,7 @@ module Mesh
 !!!!!!!!!!!!  CONSTANTS  !!!!!!!!!!!!!
   !!! Comprises of patchstart, patchsize, patchtype, patchneigh
   integer, parameter :: pstart_ = 1, psize_ = 2, ptype_ = 3, pproc_ = 4
-  integer, parameter :: dim_ = 3, lr_ = 2
+  integer, parameter :: dim_ = 3, lr_ = 2, lcell_ = 1, rcell_ = 2
   integer, parameter :: tri_ = 3, quad_ = 4, quadp1_ = 5
   integer, parameter :: enable_parallel_ = 0
   integer, parameter :: processor_bc_ = 0, wall_bc_ = 1, symmetry_bc_ = 2, &
@@ -43,7 +43,7 @@ module Mesh
   end type polyMesh
 
   type crsGraph
-    integer, dimension(:), allocatable :: xadj, adjncy, part 
+    integer, dimension(:), allocatable :: xadj, adjncy, part
   end type crsGraph
 
   contains
@@ -52,7 +52,7 @@ module Mesh
     implicit none
     real(kind=8),dimension(dim_),intent(in) :: x, y
     real(kind=8),dimension(dim_)            :: cross_prod
-    integer, dimension(3), parameter        :: c1 = (/2,3,1/), &
+    integer, dimension(dim_), parameter        :: c1 = (/2,3,1/), &
                                                c2 = (/3,1,2/)
     cross_prod = x(c1) * y(c2) - y(c1) * x(c2)
   end function cross_prod
@@ -214,8 +214,8 @@ module Mesh
       r1 = x(:, facenode( 2, iface ))
       r2 = x(:, facenode( 3, iface ))
       r3 = x(:, facenode( 4, iface ))
-      il = facelr(1, iface)
-      ir = facelr(2, iface)
+      il = facelr( lcell_, iface)
+      ir = facelr( rcell_, iface)
 !!! Planar face
       if( facenode(1, iface) .eq. tri_ ) then
         !!! Face centroid
