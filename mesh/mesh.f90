@@ -45,7 +45,7 @@ module Mesh
   type crsGraph
     integer                                 :: nvtxs = 0, nparts = 0
     integer, dimension(:), allocatable      :: xadj, adjncy, part
-    real(kind=8), dimension(:), allocatable :: adjwgt, vsurf
+    real(kind=8), dimension(:), allocatable :: adjwgt, vvol, vsurf
   end type crsGraph
 
   contains
@@ -291,10 +291,11 @@ module Mesh
     allocate( gr%xadj(gr%nvtxs + 1), gr%part(gr%nvtxs),&
               gr%adjncy(2 * pm%ninternalface),&
               gr%adjwgt(2 * pm%ninternalface),&
-              gr%vsurf(gr%nvtxs) )
+              gr%vsurf(gr%nvtxs), gr%vvol(gr%nvtxs) )
     gr%xadj   = 0
     gr%adjncy = -1
     gr%vsurf  = 0.0d0
+    gr%vvol   = pm%cv
     !!! First pass form the sizes
     do i = 1, pm%ninternalface
       gr%xadj( pm%facelr(1,i) + 1 ) = gr%xadj( pm%facelr(1,i) + 1 ) + 1
