@@ -8,7 +8,7 @@
 #include <iostream>
 
 extern "C" {
-  void write_cc_tecio
+  void write_pm_tecio
   (
     int *ilvl, int *rank, int *nnode,
     int *ncell, int *nface,

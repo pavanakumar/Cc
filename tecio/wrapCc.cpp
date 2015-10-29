@@ -1,6 +1,6 @@
 #include "wrapCc.h"
 
-void write_cc_tecio
+void write_pm_tecio
 (
   int *ilvl, int *rank,
   int *nnode, int *ncell, int *nface,
@@ -15,11 +15,13 @@ void write_cc_tecio
   tec_file.SetNumNodes( *nnode );
   tec_file.SetNumCells( *ncell );
   tec_file.SetNumFaces( *nface );
+/*
   std::cout << "nnode = "  << *nnode
             << " ncell = " << *ncell
             << " nface = " << *nface
             << " ninternalface = " 
             << *ninternalface << "\n";
+*/
   /// Set XYZ coordinates
   for( int i = 0; i < *nnode; ++i ) {
     tec_file.X()[i] = xyz[ i * 3 + 0 ];
@@ -34,7 +36,7 @@ void write_cc_tecio
     tec_file.FaceNodeCounts()[i] = facenode[ i * 5 + 0 ];
     face_node_adj_size          += facenode[ i * 5 + 0 ];
   }
-  std::cout << "face_node_adj_size = " << face_node_adj_size << "\n";
+//  std::cout << "face_node_adj_size = " << face_node_adj_size << "\n";
 
   /// Face-node adjncy data
   tec_file.SetNumFaceNodes( face_node_adj_size ); // Adj size
@@ -43,7 +45,7 @@ void write_cc_tecio
     for( int j = 1; j <= facenode[ i * 5 + 0 ]; ++j )
       tec_file.FaceNodes()[count++] = facenode[ i * 5 + j ];
 
-  std::cout << "count = " << count << "\n";
+//  std::cout << "count = " << count << "\n";
   tec_file.Write();
   tec_file.Close();
 }

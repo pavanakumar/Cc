@@ -59,7 +59,7 @@ module Wrap
       real(kind=c_double), dimension(*) :: vvol, vsurf, adjwgt
     end subroutine MGridGen_f90
 
-    subroutine write_cc_tecio( ilevel, irank, nnode, ncell,&
+    subroutine write_pm_tecio( ilevel, irank, nnode, ncell,&
                                nface, ninternalface, xyz,&
                                facelr, facenode) bind(C)
       use iso_c_binding
@@ -68,7 +68,7 @@ module Wrap
       real(kind=c_double), dimension(*) :: xyz
       integer(kind=c_int), dimension(*) :: facelr, facenode
 
-    end subroutine write_cc_tecio
+    end subroutine write_pm_tecio
 
   end interface  
 

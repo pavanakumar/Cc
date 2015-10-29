@@ -146,8 +146,8 @@ void check_metrics
   int *ncell, int *nface, double *cv,
   double *cc, double *fc, double *fs,
   double *dn ) {
-  std::cerr << "Epsilon = " << std::numeric_limits<double>::epsilon() << "\n";
-  std::cerr << "Round err  = " << std::numeric_limits<double>::round_error() << "\n";
+//  std::cerr << "Epsilon = " << std::numeric_limits<double>::epsilon() << "\n";
+//  std::cerr << "Round err  = " << std::numeric_limits<double>::round_error() << "\n";
   const double eps = 1.0e-10;//std::numeric_limits<double>::epsilon() * 10.0;
   for( int i=0; i<*ncell; ++i ) {
     double cv_chk = std::abs( (cv[i] - global_of_mesh->mesh()->V()[i]) / cv[i] );
