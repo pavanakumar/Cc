@@ -43,7 +43,9 @@ module Mesh
   end type polyMesh
 
   type crsGraph
-    integer, dimension(:), allocatable :: xadj, adjncy, part
+    integer                                 :: nvtxs = 0, nparts = 0
+    integer, dimension(:), allocatable      :: xadj, adjncy, part
+    real(kind=8), dimension(:), allocatable :: adjwgt, vsurf
   end type crsGraph
 
   contains
@@ -271,6 +273,65 @@ module Mesh
     call check_metrics( ncell, nface, cv, cc, fc, fs, dn )
 
   end subroutine mesh_metrics_tapenade
+
+  !!! Construct the CSR graph from the edge2nodes data, which
+  !!! are input to the METIS partitioner routines 
+  subroutine pm_to_graph( pm, gr )
+    use mpi
+    implicit none
+    type(polyMesh), intent(in)  :: pm
+    type(crsGraph), intent(out) :: gr
+    !!! Local subroutine variables
+    integer :: ierr, i
+    !!! Some simple memory checks
+    if( gr%nvtxs .ne. 0 ) then
+      deallocate(gr%xadj, gr%adjncy, gr%part, gr%vsurf)
+    end if
+    gr%nvtxs = pm%ncell
+    allocate( gr%xadj(gr%nvtxs + 1), gr%part(gr%nvtxs),&
+              gr%adjncy(2 * pm%ninternalface),&
+              gr%adjwgt(2 * pm%ninternalface),&
+              gr%vsurf(gr%nvtxs) )
+    gr%xadj   = 0
+    gr%adjncy = -1
+    gr%vsurf  = 0.0d0
+    !!! First pass form the sizes
+    do i = 1, pm%ninternalface
+      gr%xadj( pm%facelr(1,i) + 1 ) = gr%xadj( pm%facelr(1,i) + 1 ) + 1
+      gr%xadj( pm%facelr(2,i) + 1 ) = gr%xadj( pm%facelr(2,i) + 1 ) + 1
+    end do
+    !!! All boundary face surface area (attach to cell)
+    do i = pm%ninternalface + 1, pm%nface
+      gr%vsurf( pm%facelr(1,i) ) = gr%vsurf( pm%facelr(1,i) ) + pm%fs(i)
+    end do
+    !!! Form the xadj offsets (Can replace with intrisic?)
+    do i = 1, gr%nvtxs
+      gr%xadj(i+1) = gr%xadj(i) + gr%xadj(i+1)
+    end do
+    !!! Check size match
+    if( gr%xadj(gr%nvtxs + 1) .ne. (2 * pm%ninternalface) ) then
+      write(*,*) 'Error: Sizes of facelr xadj do not match ninternalface',&
+        gr%xadj(pm%nnode + 1 ), 2 * pm%nface
+    end if
+    !!! Second pass form the adjncy
+    do i = 1, pm%ninternalface
+      !!! Push the left face data
+      gr%xadj(pm%facelr(1, i)) = gr%xadj(pm%facelr(1, i)) + 1
+      gr%adjncy(gr%xadj(pm%facelr(1, i))) = pm%facelr(2, i)
+      gr%adjwgt(gr%xadj(pm%facelr(1, i))) = pm%fs(i)
+      !!! Push the right face data
+      gr%xadj(pm%facelr(2, i)) = gr%xadj(pm%facelr(2, i)) + 1
+      gr%adjncy(gr%xadj(pm%facelr(2, i))) = pm%facelr(1, i)
+      gr%adjwgt(gr%xadj(pm%facelr(2, i))) = pm%fs(i)
+    end do
+    gr%xadj = cshift(gr%xadj, gr%nvtxs)
+    gr%xadj(1) = 0
+    !!! Check to see if the adjncy array is formed correctly
+    if(count(gr%adjncy .lt. 0) .ne. 0) then
+      write(*,*) 'Error: Adjncy array from edge2nodes not constructed correctly'
+    end if
+
+  end subroutine pm_to_graph
 
 end module Mesh
 
