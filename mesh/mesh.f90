@@ -55,6 +55,7 @@ module Mesh
     integer, dimension(dim_), parameter        :: c1 = (/2,3,1/), &
                                                c2 = (/3,1,2/)
     cross_prod = x(c1) * y(c2) - y(c1) * x(c2)
+
   end function cross_prod
 
   function r_1234(r1, r2, r3, r4, xi, eta)
@@ -64,6 +65,7 @@ module Mesh
     real(kind=8),dimension(dim_)            :: r_1234
     r_1234 = ( r1 * ( 1.0d0 - xi ) + r2 * xi ) * ( 1.0d0 - eta ) + &
              ( r4 * ( 1.0d0 - xi ) + r3 * xi ) * eta
+
   end function r_1234
 
   function dS_1234(r1, r2, r3, r4, xi, eta)
@@ -74,6 +76,7 @@ module Mesh
     temp1   = (r2 - r1) * ( 1.0d0 - eta ) + (r3 - r4) * eta
     temp2   = (r4 - r1) * ( 1.0d0 - xi  ) + (r3 - r2) * xi
     dS_1234 = cross_prod( temp1, temp2 )
+
   end function dS_1234
 
   function func_1234(r1, r2, r3, r4, xi, eta)
@@ -85,6 +88,7 @@ module Mesh
     temp      = r_1234(r1, r2, r3, r4, xi, eta)
     temp_dot  = sum( temp * temp )
     func_1234 = temp_dot * dS_1234(r1, r2, r3, r4, xi, eta)
+
   end function func_1234
 
   subroutine create_mg_pm( nlevel, pm, ipar )
@@ -128,6 +132,7 @@ module Mesh
     !!! Calculate the metrics
     call mesh_metrics( pm(nlevel) )
     call close_of_mesh()
+
   end subroutine reader_of
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -169,6 +174,7 @@ module Mesh
            pm%x, pm%facelr, &
            pm%facenode, pm%cv, pm%cc, &
            pm%dn, pm%fs, pm%fc )
+
   end subroutine mesh_metrics 
 
   subroutine allocate_pm( pm )
@@ -191,6 +197,7 @@ module Mesh
                 pm%facegid( pm%nface ), &
                 pm%nodegid( pm%nnode ) )
     end if
+
   end subroutine allocate_pm
 
   subroutine mesh_metrics_tapenade( &
@@ -262,6 +269,7 @@ module Mesh
       cc(:,icell) = 0.50d0 * cc(:,icell) / cv(icell)
     end do
     call check_metrics( ncell, nface, cv, cc, fc, fs, dn )
+
   end subroutine mesh_metrics_tapenade
 
 end module Mesh
