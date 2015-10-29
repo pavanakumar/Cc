@@ -312,7 +312,7 @@ module Mesh
     !!! Check size match
     if( gr%xadj(gr%nvtxs + 1) .ne. (2 * pm%ninternalface) ) then
       write(*,*) 'Error: Sizes of facelr xadj do not match ninternalface',&
-        gr%xadj(pm%nnode + 1 ), 2 * pm%nface
+        gr%xadj(gr%nvtxs + 1), 2 * pm%ninternalface
     end if
     !!! Second pass form the adjncy
     do i = 1, pm%ninternalface
