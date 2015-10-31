@@ -60,7 +60,7 @@ void Contribute_MultiObj(CtrlType *, GraphType *);
 /* mgridgen.c */
 void MGridGen(int, idxtype *, realtype *, realtype *, idxtype *, realtype *,
               int, int, int *, int *, int *, idxtype *);
-void MGridGen_f90(int *, idxtype *, realtype *, realtype *, idxtype *, realtype *,
+void mgridgen_f90(int *, idxtype *, realtype *, realtype *, idxtype *, realtype *,
               int *, int *, int *, int *, int *, idxtype *);
 void MGridGenRefine(int, idxtype *, realtype *, realtype *, idxtype *,
                     idxtype *, realtype *, int , int , int *, int *, int *,

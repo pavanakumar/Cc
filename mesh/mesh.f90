@@ -134,7 +134,6 @@ module Mesh
     !!! Calculate the metrics
     call mesh_metrics( pm(nlevel) )
     call close_of_mesh()
-
   end subroutine reader_of
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -147,9 +146,14 @@ module Mesh
     integer, intent(in)           :: nlevel, ipar
     type(polyMesh), intent(inout) :: pm(nlevel)
     !!! Local variables
-    integer :: ilvl, ilvl_c
+    integer :: ilvl, ilvl_c, minsize=1, maxsize=10, &
+               options(4) = (/ 4, 6, 128, 3 /), nmoves, nparts
     type(crsGraph) :: gr
  
+    call pm_to_graph( pm(nlevel), gr )
+    call MGridGen_f90( gr%nvtxs, gr%xadj, gr%vvol, gr%vsurf, gr%adjncy, &
+                       gr%adjwgt, minsize, maxsize, options, nmoves, nparts, &
+                       gr%part )
     !!! Multi-grid mgridgen
     do ilvl = nlevel, 2, -1
       ilvl_c = ilvl - 1
@@ -288,9 +292,9 @@ module Mesh
       deallocate(gr%xadj, gr%adjncy, gr%part, gr%vsurf)
     end if
     gr%nvtxs = pm%ncell
-    allocate( gr%xadj(gr%nvtxs + 1), gr%part(gr%nvtxs),&
-              gr%adjncy(2 * pm%ninternalface),&
-              gr%adjwgt(2 * pm%ninternalface),&
+    allocate( gr%xadj(gr%nvtxs + 1), gr%part(gr%nvtxs), &
+              gr%adjncy(2 * pm%ninternalface), &
+              gr%adjwgt(2 * pm%ninternalface), &
               gr%vsurf(gr%nvtxs), gr%vvol(gr%nvtxs) )
     gr%xadj   = 0
     gr%adjncy = -1
@@ -298,12 +302,15 @@ module Mesh
     gr%vvol   = pm%cv
     !!! First pass form the sizes
     do i = 1, pm%ninternalface
-      gr%xadj( pm%facelr(1,i) + 1 ) = gr%xadj( pm%facelr(1,i) + 1 ) + 1
-      gr%xadj( pm%facelr(2,i) + 1 ) = gr%xadj( pm%facelr(2,i) + 1 ) + 1
+      gr%xadj(pm%facelr(1, i)) = gr%xadj(pm%facelr(1, i)) + 1
+      gr%xadj(pm%facelr(2, i)) = gr%xadj(pm%facelr(2, i)) + 1
     end do
+    gr%xadj = cshift(gr%xadj, gr%nvtxs)
+    gr%xadj(1) = 0
+    write(*,*) gr%xadj
     !!! All boundary face surface area (attach to cell)
     do i = pm%ninternalface + 1, pm%nface
-      gr%vsurf( pm%facelr(1,i) ) = gr%vsurf( pm%facelr(1,i) ) + pm%fs(i)
+      gr%vsurf(pm%facelr(1, i)) = gr%vsurf(pm%facelr(1, i)) + pm%fs(i)
     end do
     !!! Form the xadj offsets (Can replace with intrisic?)
     do i = 1, gr%nvtxs
@@ -311,22 +318,23 @@ module Mesh
     end do
     !!! Check size match
     if( gr%xadj(gr%nvtxs + 1) .ne. (2 * pm%ninternalface) ) then
-      write(*,*) 'Error: Sizes of facelr xadj do not match ninternalface',&
+      write(*,*) 'Error: Sizes of facelr xadj do not match ninternalface', &
         gr%xadj(gr%nvtxs + 1), 2 * pm%ninternalface
     end if
     !!! Second pass form the adjncy
     do i = 1, pm%ninternalface
       !!! Push the left face data
       gr%xadj(pm%facelr(1, i)) = gr%xadj(pm%facelr(1, i)) + 1
-      gr%adjncy(gr%xadj(pm%facelr(1, i))) = pm%facelr(2, i)
+      gr%adjncy(gr%xadj(pm%facelr(1, i))) = pm%facelr(2, i) - 1
       gr%adjwgt(gr%xadj(pm%facelr(1, i))) = pm%fs(i)
       !!! Push the right face data
       gr%xadj(pm%facelr(2, i)) = gr%xadj(pm%facelr(2, i)) + 1
-      gr%adjncy(gr%xadj(pm%facelr(2, i))) = pm%facelr(1, i)
+      gr%adjncy(gr%xadj(pm%facelr(2, i))) = pm%facelr(1, i) - 1
       gr%adjwgt(gr%xadj(pm%facelr(2, i))) = pm%fs(i)
     end do
     gr%xadj = cshift(gr%xadj, gr%nvtxs)
     gr%xadj(1) = 0
+    write(*,*) gr%xadj
     !!! Check to see if the adjncy array is formed correctly
     if(count(gr%adjncy .lt. 0) .ne. 0) then
       write(*,*) 'Error: Adjncy array from edge2nodes not constructed correctly'

@@ -53,7 +53,7 @@ void MGridGen(int nvtxs, idxtype *xadj, realtype *vvol, realtype *vsurf,
 /*************************************************************************
 * This function is a f90 wrapper for MGridGen
 **************************************************************************/
-void MGridGen_f90( int *nvtxs, idxtype *xadj, realtype *vvol, realtype *vsurf,
+void mgridgen_f90( int *nvtxs, idxtype *xadj, realtype *vvol, realtype *vsurf,
                    idxtype *adjncy, realtype *adjwgt, int *minsize, int *maxsize,
                    int *options, int *nmoves, int *nparts, idxtype *part)
 {
