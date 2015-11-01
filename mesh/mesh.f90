@@ -29,11 +29,12 @@ module Mesh
     !!! Connecivity/Topology
     integer, dimension(:,:), allocatable :: facelr
     integer, dimension(:,:), allocatable :: facenode
-    integer, dimension(:,:), allocatable :: patchdata
+    integer, dimension(:,:), pointer     :: patchdata
     !!! Metrics
     !!! xyz coords, cell-center, unit-normal, face-center
     !!! cell-volume, face-area
-    real(kind=8), dimension(:,:), allocatable :: x, cc, dn, fc
+    real(kind=8), dimension(:,:), pointer     :: x
+    real(kind=8), dimension(:,:), allocatable :: cc, dn, fc
     real(kind=8), dimension(:), allocatable   :: cv, fs
     !!! Parallel run (global numbering of local entities)
     logical                            :: parallel = .false.
@@ -43,7 +44,7 @@ module Mesh
   end type polyMesh
 
   type crsGraph
-    integer                                 :: nvtxs = 0, nparts = 0
+    integer                                 :: nvtx = 0, npart = 0
     integer, dimension(:), allocatable      :: xadj, adjncy, part
     real(kind=8), dimension(:), allocatable :: adjwgt, vvol, vsurf
   end type crsGraph
@@ -120,6 +121,7 @@ module Mesh
       end if
       pm(ilvl)%nlevel = nlevel
       pm(ilvl)%ilevel = ilvl
+      nullify(pm(ilvl)%x)
     end do
     !!! Read in the finest mesh from OpenFOAM    
     call init_of_mesh( ipar )
@@ -146,28 +148,86 @@ module Mesh
     integer, intent(in)           :: nlevel, ipar
     type(polyMesh), intent(inout) :: pm(nlevel)
     !!! Local variables
-    integer :: ilvl, ilvl_c, minsize=1, maxsize=10, &
-               options(4) = (/ 4, 6, 128, 3 /), nmoves, nparts
+    integer :: ilvl, minsize=1, maxsize=10, &
+               options(4) = (/ 4, 6, 128, 3 /), nmoves
     type(crsGraph) :: gr
  
-    call pm_to_graph( pm(nlevel), gr )
-    call MGridGen_f90( gr%nvtxs, gr%xadj, gr%vvol, gr%vsurf, gr%adjncy, &
-                       gr%adjwgt, minsize, maxsize, options, nmoves, nparts, &
-                       gr%part )
     !!! Multi-grid mgridgen
     do ilvl = nlevel, 2, -1
-      ilvl_c = ilvl - 1
-!      call allocate_graph( pm(ilvl), gr )
-!      call create_graph( pm(ilvl), gr )
-!      call create_mg( gr%xadj, gr%adjncy, gr%part, pm(ilvl)%cv, &
-!                      pm(ilvl)%fs, pm(ilvl)%patchdata )
+      call pm_to_graph( pm(ilvl), gr )
+      call MGridGen_f90( gr%nvtx, gr%xadj, gr%vvol, gr%vsurf, gr%adjncy, &
+                         gr%adjwgt, minsize, maxsize, options, nmoves, gr%npart, &
+                         gr%part )
+!      write(*,*) gr%part
 !      call fix_mg_degeneracy( pm(ilvl), gr%part )
-!      call fine_to_coarse( pm(ilvl), pm(ilvl_c), gr%part )
-!      call deallocate_graph( gr )
+      call build_pm_coarse( pm(ilvl), pm(ilvl-1), gr )
 !      call mesh_metrics( pm(ilvl_c) ) 
     end do
 
+    do ilvl = nlevel, 1, -1
+      call write_pm_tecio( ilvl, 0, pm(ilvl)%nnode, pm(ilvl)%ncell,&
+                          pm(ilvl)%nface, pm(ilvl)%ninternalface,&
+                          pm(ilvl)%x, pm(ilvl)%facelr, pm(ilvl)%facenode )
+    end do
   end subroutine create_mg_levels
+
+  subroutine build_pm_coarse( pmf, pmc, gr )
+    implicit none
+    type(polyMesh) :: pmf, pmc
+    type(crsGraph) :: gr
+    !! Local variables
+    integer, allocatable :: tmplr(:,:)
+    integer :: ninternalface, nbface, iface
+    !! Find unique internal faces in coarse mesh
+    allocate(tmplr(2, pmf%nface))
+    ninternalface = 0
+    do iface = 1, pmf%nface
+      tmplr(1, iface) = gr%part(pmf%facelr(1, iface)) + 1
+      if( iface .le. pmf%ninternalface ) then
+        tmplr(2, iface) = gr%part(pmf%facelr(2, iface)) + 1
+        if( tmplr(1, iface) .ne. tmplr(2, iface) ) then
+          ninternalface = ninternalface + 1
+!          write(*,*) ninternalface, tmplr(1, iface), tmplr(2, iface)
+        end if
+      end if
+    end do
+    !! Copy unique faces in coarse grid numbering
+    pmc%nnode         = pmf%nnode
+    pmc%ninternalface = ninternalface
+    pmc%ncell         = gr%npart
+    nbface            = pmf%nface - pmf%ninternalface
+    pmc%nface         = pmc%ninternalface + nbface
+    pmc%npatch        = pmf%npatch
+    allocate(pmc%facelr(2, pmc%nface))
+    allocate(pmc%facenode(5, pmc%nface))
+    !! Internal faces
+    ninternalface = 0
+    pmc%facelr    = 0
+
+    do iface = 1, pmf%ninternalface
+      if( tmplr(1, iface) .ne. tmplr(2, iface) ) then
+        ninternalface = ninternalface + 1
+        pmc%facelr(:, ninternalface)   = tmplr(:, iface)
+        pmc%facenode(:, ninternalface) = pmf%facenode(:, iface)
+!        write(*,*) ninternalface, pmc%facelr(1, ninternalface), pmc%facelr(2, ninternalface)
+      end if
+    end do
+    !! Boundary faces
+    do iface = pmf%ninternalface + 1, pmf%nface
+      ninternalface = ninternalface + 1
+      pmc%facelr(:, ninternalface)   = tmplr(:, iface)
+      pmc%facenode(:, ninternalface) = pmf%facenode(:, iface)
+    end do
+!    write(*,*) ninternalface, pmc%nface
+    !! Assign node pointer
+    pmc%x         => pmf%x
+    pmc%patchdata => pmf%patchdata
+    !! Assign grid level infomration
+    pmc%ilevel = pmf%ilevel - 1
+    pmc%nlevel = pmf%nlevel
+    deallocate(tmplr)
+
+  end subroutine build_pm_coarse
 
   !!! Simpler wrapper for metrics
   subroutine mesh_metrics( pm )
@@ -288,14 +348,14 @@ module Mesh
     !!! Local subroutine variables
     integer :: ierr, i
     !!! Some simple memory checks
-    if( gr%nvtxs .ne. 0 ) then
-      deallocate(gr%xadj, gr%adjncy, gr%part, gr%vsurf)
+    if( gr%nvtx .ne. 0 ) then
+      deallocate(gr%xadj, gr%adjncy, gr%adjwgt, gr%part, gr%vsurf)
     end if
-    gr%nvtxs = pm%ncell
-    allocate( gr%xadj(gr%nvtxs + 1), gr%part(gr%nvtxs), &
+    gr%nvtx = pm%ncell
+    allocate( gr%xadj(gr%nvtx + 1), gr%part(gr%nvtx), &
               gr%adjncy(2 * pm%ninternalface), &
               gr%adjwgt(2 * pm%ninternalface), &
-              gr%vsurf(gr%nvtxs), gr%vvol(gr%nvtxs) )
+              gr%vsurf(gr%nvtx), gr%vvol(gr%nvtx) )
     gr%xadj   = 0
     gr%adjncy = -1
     gr%vsurf  = 0.0d0
@@ -305,7 +365,7 @@ module Mesh
       gr%xadj(pm%facelr(1, i)) = gr%xadj(pm%facelr(1, i)) + 1
       gr%xadj(pm%facelr(2, i)) = gr%xadj(pm%facelr(2, i)) + 1
     end do
-    gr%xadj = cshift(gr%xadj, gr%nvtxs)
+    gr%xadj = cshift(gr%xadj, gr%nvtx)
     gr%xadj(1) = 0
     write(*,*) gr%xadj
     !!! All boundary face surface area (attach to cell)
@@ -313,13 +373,13 @@ module Mesh
       gr%vsurf(pm%facelr(1, i)) = gr%vsurf(pm%facelr(1, i)) + pm%fs(i)
     end do
     !!! Form the xadj offsets (Can replace with intrisic?)
-    do i = 1, gr%nvtxs
+    do i = 1, gr%nvtx
       gr%xadj(i+1) = gr%xadj(i) + gr%xadj(i+1)
     end do
     !!! Check size match
-    if( gr%xadj(gr%nvtxs + 1) .ne. (2 * pm%ninternalface) ) then
+    if( gr%xadj(gr%nvtx + 1) .ne. (2 * pm%ninternalface) ) then
       write(*,*) 'Error: Sizes of facelr xadj do not match ninternalface', &
-        gr%xadj(gr%nvtxs + 1), 2 * pm%ninternalface
+        gr%xadj(gr%nvtx + 1), 2 * pm%ninternalface
     end if
     !!! Second pass form the adjncy
     do i = 1, pm%ninternalface
@@ -332,7 +392,7 @@ module Mesh
       gr%adjncy(gr%xadj(pm%facelr(2, i))) = pm%facelr(1, i) - 1
       gr%adjwgt(gr%xadj(pm%facelr(2, i))) = pm%fs(i)
     end do
-    gr%xadj = cshift(gr%xadj, gr%nvtxs)
+    gr%xadj = cshift(gr%xadj, gr%nvtx)
     gr%xadj(1) = 0
     write(*,*) gr%xadj
     !!! Check to see if the adjncy array is formed correctly

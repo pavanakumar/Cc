@@ -9,9 +9,5 @@ program Cc
   
   call create_mg_pm( nlevel, pm, ipar )
   
-  call write_pm_tecio( 1, 0, pm(nlevel)%nnode, pm(nlevel)%ncell,&
-                       pm(nlevel)%nface, pm(nlevel)%ninternalface,&
-                       pm(nlevel)%x, pm(nlevel)%facelr, pm(nlevel)%facenode )
-
 end program Cc
 
