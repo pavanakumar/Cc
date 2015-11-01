@@ -158,10 +158,9 @@ module Mesh
       call MGridGen_f90( gr%nvtx, gr%xadj, gr%vvol, gr%vsurf, gr%adjncy, &
                          gr%adjwgt, minsize, maxsize, options, nmoves, gr%npart, &
                          gr%part )
-!      write(*,*) gr%part
 !      call fix_mg_degeneracy( pm(ilvl), gr%part )
-      call build_pm_coarse( pm(ilvl), pm(ilvl-1), gr )
-!      call mesh_metrics( pm(ilvl_c) ) 
+      call build_pm_coarse( pm(ilvl), pm(ilvl - 1), gr )
+      call mesh_metrics( pm(ilvl - 1) ) 
     end do
 
     do ilvl = nlevel, 1, -1
@@ -187,7 +186,6 @@ module Mesh
         tmplr(2, iface) = gr%part(pmf%facelr(2, iface)) + 1
         if( tmplr(1, iface) .ne. tmplr(2, iface) ) then
           ninternalface = ninternalface + 1
-!          write(*,*) ninternalface, tmplr(1, iface), tmplr(2, iface)
         end if
       end if
     end do
@@ -209,7 +207,6 @@ module Mesh
         ninternalface = ninternalface + 1
         pmc%facelr(:, ninternalface)   = tmplr(:, iface)
         pmc%facenode(:, ninternalface) = pmf%facenode(:, iface)
-!        write(*,*) ninternalface, pmc%facelr(1, ninternalface), pmc%facelr(2, ninternalface)
       end if
     end do
     !! Boundary faces
@@ -218,7 +215,6 @@ module Mesh
       pmc%facelr(:, ninternalface)   = tmplr(:, iface)
       pmc%facenode(:, ninternalface) = pmf%facenode(:, iface)
     end do
-!    write(*,*) ninternalface, pmc%nface
     !! Assign node pointer
     pmc%x         => pmf%x
     pmc%patchdata => pmf%patchdata
