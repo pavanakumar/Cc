@@ -46,10 +46,17 @@ write_Cc_script()
 
 install_luajit()
 {
-  
   cd $SRC_DIR/luajit-2.0
   mv Makefile Makefile.old
   sed 's#/usr/local#'$SRC_DIR'/lua#' Makefile.old > Makefile
+  make clean
+  make install
+}
+
+install_luaposix()
+{
+  cd $SRC_DIR/luaposix
+  LUA=$SRC_DIR/lua/bin/luajit CFLAGS=-I$SRC_DIR/lua/include/luajit-2.0 ./configure --prefix=$SRC_DIR/lua 
   make clean
   make install
 }
@@ -64,6 +71,7 @@ if [ "$OPENFOAM_ROOT" ]; then
     cd $OF_SRC_DIR
     wclean; wmake
     install_luajit
+    install_luaposix
   else
     echo "The OpenFOAM bashrc script does not exist at $OPENFOAM_ROOT/etc/bashrc"
     echo "Check the path set in OPENFOAM_ROOT"
