@@ -104,6 +104,8 @@ void get_pm_patches( int *npatch, int *patchdata ) {
       patchdata[ i * 4 + 2 ] = _wall_bc;
     else if( basicTypes[i] == "symmetryPlane" )
       patchdata[ i * 4 + 2 ] = _symmetry_bc;
+    else if( basicTypes[i] == "empty" )
+      patchdata[ i * 4 + 2 ] = _empty_bc;
     else if( basicTypes[i] == "patch" ) {  /// specially treat inlet/outlet/riemann
       if( physicalTypes[i] == "riemann" ) {
         patchdata[ i * 4 + 2 ] = _riemann_bc;
@@ -113,6 +115,8 @@ void get_pm_patches( int *npatch, int *patchdata ) {
         patchdata[ i * 4 + 2 ] = _outlet_bc;
       }else if( physicalTypes[i] == "symmetry" ) {
         patchdata[ i * 4 + 2 ] = _symmetry_bc;
+      }else if( basicTypes[i] == "empty" ) {
+        patchdata[ i * 4 + 2 ] = _empty_bc;
       }else {
         Foam::Info << "Unknown physical patch type \"" << physicalTypes[i] << "\"\n";
         if( physicalTypes[i] == "" )
