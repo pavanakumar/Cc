@@ -46,8 +46,12 @@ write_Cc_script()
 
 install_luajit()
 {
+  
   cd $SRC_DIR/luajit-2.0
-  make
+  mv Makefile Makefile.old
+  sed 's#/usr/local#'$SRC_DIR'/lua#' Makefile.old > Makefile
+  make clean
+  make install
 }
 
 ##### Create the OpenFOAM Make script ###
