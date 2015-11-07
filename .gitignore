@@ -10,3 +10,11 @@ Cc.x
 Cc
 *.swp
 *.dSYM
+test/cavity/processor*
+test/cavity/constant/polyMesh/faces
+test/cavity/constant/polyMesh/points
+test/cavity/constant/polyMesh/owner
+test/cavity/constant/polyMesh/neighbour
+test/cavity/constant/polyMesh/boundary
+test/cavity/*.plt
+
