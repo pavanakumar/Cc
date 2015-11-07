@@ -1,11 +1,11 @@
 *.o
 *.mod
-lnInclude/*
+mesh/lnInclude/*
 *.dylib
 *.so
-*.dep
+mesh/*.dep
 make.of.inc
-Make/*
+mesh/Make/*
 Cc.x
 Cc
 *.swp
