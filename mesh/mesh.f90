@@ -41,12 +41,14 @@ module Mesh
     logical                            :: parallel = .false.
     integer, dimension(:), pointer     :: cellgid, nodegid, facegid
     !!! Multigrid variables
+    integer, dimension(:), pointer     :: mgpart
 
   end type polyMesh
 
   type crsGraph
     integer                                 :: nvtx = 0, npart = 0
-    integer, dimension(:), allocatable      :: xadj, adjncy, part
+    integer, dimension(:), allocatable      :: xadj, adjncy
+    integer, dimension(:), pointer          :: part
     real(kind=8), dimension(:), allocatable :: adjwgt, vvol, vsurf
   end type crsGraph
 
@@ -223,10 +225,12 @@ module Mesh
     !! Assign node pointer
     pmc%x         => pmf%x
     pmc%patchdata => pmf%patchdata
+    pmc%mgpart    => gr%part
     !! Nullify parallel data
     nullify(pmc%cellgid)
     nullify(pmc%facegid)
     nullify(pmc%nodegid)
+    nullify(gr%part)
     deallocate(tmplr)
 
   end subroutine build_pm_coarse
@@ -256,24 +260,24 @@ module Mesh
     implicit none
     type(polyMesh), intent(inout) :: pm
     !!! Connectivity
-    allocate( pm%facelr( lr_, pm%nface ), &
-              pm%facenode( quadp1_, pm%nface ) )
+    allocate( pm%facelr( lr_, pm%nface ) )
+    allocate( pm%facenode( quadp1_, pm%nface ) )
     !!! Metrics
-    allocate( pm%cc( dim_, pm%ncell ), &
-              pm%cv( pm%ncell ), &
-              pm%dn( dim_, pm%nface ), &
-              pm%fc( dim_, pm%nface ), &
-              pm%fs( pm%nface ) )
+    allocate( pm%cc( dim_, pm%ncell ) )
+    allocate( pm%cv( pm%ncell ) )
+    allocate( pm%dn( dim_, pm%nface ) )
+    allocate( pm%fc( dim_, pm%nface ) )
+    allocate( pm%fs( pm%nface ) )
     !!! Allocate nodes only to finest level
     !!! and share it across levels
     if( pm%ilevel .eq. pm%nlevel ) then
-      allocate( pm%x( dim_, pm%nnode ), &
-                pm%patchdata( pproc_, pm%npatch) )
+      allocate( pm%x( dim_, pm%nnode ) )
+      allocate( pm%patchdata( pproc_, pm%npatch) )
       !!! Parallel data
       if( pm%parallel .eqv. .true. ) then
-        allocate( pm%cellgid( pm%ncell ), &
-                  pm%facegid( pm%nface ), &
-                  pm%nodegid( pm%nnode ) )
+        allocate( pm%cellgid( pm%ncell ) )
+        allocate( pm%facegid( pm%nface ) )
+        allocate( pm%nodegid( pm%nnode ) )
       end if
     end if
 
@@ -359,9 +363,12 @@ module Mesh
     !!! Local subroutine variables
     integer :: ierr, i
     !!! Some simple memory checks
-    if( gr%nvtx .ne. 0 ) then
-      deallocate(gr%xadj, gr%adjncy, gr%adjwgt, gr%part, gr%vsurf)
-    end if
+    if( allocated(gr%xadj) .eqv. .true.   ) deallocate(gr%xadj)
+    if( allocated(gr%adjncy) .eqv. .true. ) deallocate(gr%adjncy)
+    if( allocated(gr%adjwgt) .eqv. .true. ) deallocate(gr%adjwgt)
+    if( associated(gr%part) .eqv. .true.  ) deallocate(gr%part)
+    if( allocated(gr%vsurf) .eqv. .true.  ) deallocate(gr%vsurf)
+    !!! Allocations
     gr%nvtx = pm%ncell
     allocate( gr%xadj(gr%nvtx + 1), gr%part(gr%nvtx), &
               gr%adjncy(2 * pm%ninternalface), &
