@@ -20,7 +20,8 @@ module Mesh
   integer, parameter :: tri_ = 3, quad_ = 4, quadp1_ = 5
   integer, parameter :: enable_parallel_ = 0
   integer, parameter :: processor_bc_ = 0, wall_bc_ = 1, symmetry_bc_ = 2, &
-                        inlet_bc_ = 3, outlet_bc_ = 4, riemann_bc_ = 5
+                        inlet_bc_ = 3, outlet_bc_ = 4, riemann_bc_ = 5, &
+                        empty_bc_ = 6
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   type polyMesh
     !!! Sizes
@@ -38,7 +39,7 @@ module Mesh
     real(kind=8), dimension(:), allocatable   :: cv, fs
     !!! Parallel run (global numbering of local entities)
     logical                            :: parallel = .false.
-    integer, dimension(:), allocatable :: cellgid, nodegid, facegid
+    integer, dimension(:), pointer     :: cellgid, nodegid, facegid
     !!! Multigrid variables
 
   end type polyMesh
@@ -177,6 +178,10 @@ module Mesh
     !! Local variables
     integer, allocatable :: tmplr(:,:)
     integer :: ninternalface, nbface, iface
+
+    !! Assign grid level infomration
+    pmc%ilevel = pmf%ilevel - 1
+    pmc%nlevel = pmf%nlevel
     !! Find unique internal faces in coarse mesh
     allocate(tmplr(2, pmf%nface))
     ninternalface = 0
@@ -196,12 +201,12 @@ module Mesh
     nbface            = pmf%nface - pmf%ninternalface
     pmc%nface         = pmc%ninternalface + nbface
     pmc%npatch        = pmf%npatch
-    allocate(pmc%facelr(2, pmc%nface))
-    allocate(pmc%facenode(5, pmc%nface))
-    !! Internal faces
+    !! Allocate the polyMesh
+    call allocate_pm( pmc )
+    !! Internal faces counters
     ninternalface = 0
     pmc%facelr    = 0
-
+    !! Copy temp face data to coarse mesh
     do iface = 1, pmf%ninternalface
       if( tmplr(1, iface) .ne. tmplr(2, iface) ) then
         ninternalface = ninternalface + 1
@@ -218,15 +223,17 @@ module Mesh
     !! Assign node pointer
     pmc%x         => pmf%x
     pmc%patchdata => pmf%patchdata
-    !! Assign grid level infomration
-    pmc%ilevel = pmf%ilevel - 1
-    pmc%nlevel = pmf%nlevel
+    !! Nullify parallel data
+    nullify(pmc%cellgid)
+    nullify(pmc%facegid)
+    nullify(pmc%nodegid)
     deallocate(tmplr)
 
   end subroutine build_pm_coarse
 
   !!! Simpler wrapper for metrics
   subroutine mesh_metrics( pm )
+    use Wrap
     implicit none
     type( polyMesh ) :: pm
     !!! Tapenade diff function
@@ -236,6 +243,12 @@ module Mesh
            pm%x, pm%facelr, &
            pm%facenode, pm%cv, pm%cc, &
            pm%dn, pm%fs, pm%fc )
+    !!! Check metrics only if fine mesh
+    if( pm%nlevel .eq. pm%ilevel ) then
+      call check_metrics &
+           ( pm%ncell, pm%nface, pm%cv, &
+             pm%cc, pm%fc, pm%fs, pm%dn )
+    end if
 
   end subroutine mesh_metrics 
 
@@ -244,20 +257,24 @@ module Mesh
     type(polyMesh), intent(inout) :: pm
     !!! Connectivity
     allocate( pm%facelr( lr_, pm%nface ), &
-              pm%facenode( quadp1_, pm%nface ), &
-              pm%patchdata( pproc_, pm%npatch) )
+              pm%facenode( quadp1_, pm%nface ) )
     !!! Metrics
-    allocate( pm%x( dim_, pm%nnode ), &
-              pm%cc( dim_, pm%ncell ), &
+    allocate( pm%cc( dim_, pm%ncell ), &
               pm%cv( pm%ncell ), &
               pm%dn( dim_, pm%nface ), &
               pm%fc( dim_, pm%nface ), &
               pm%fs( pm%nface ) )
-    !!! Parallel data
-    if( pm%parallel .eqv. .true. ) then
-      allocate( pm%cellgid( pm%ncell ), &
-                pm%facegid( pm%nface ), &
-                pm%nodegid( pm%nnode ) )
+    !!! Allocate nodes only to finest level
+    !!! and share it across levels
+    if( pm%ilevel .eq. pm%nlevel ) then
+      allocate( pm%x( dim_, pm%nnode ), &
+                pm%patchdata( pproc_, pm%npatch) )
+      !!! Parallel data
+      if( pm%parallel .eqv. .true. ) then
+        allocate( pm%cellgid( pm%ncell ), &
+                  pm%facegid( pm%nface ), &
+                  pm%nodegid( pm%nnode ) )
+      end if
     end if
 
   end subroutine allocate_pm
@@ -266,7 +283,6 @@ module Mesh
     nnode, nface, ninternalface, ncell, &
     x, facelr, facenode, &
     cv, cc, dn, fs, fc )
-    use Wrap
     implicit none
     integer, intent(in)         :: nnode, nface, ninternalface, ncell
     real(kind=8), intent(in)    :: x(dim_, nnode)
@@ -330,7 +346,6 @@ module Mesh
     do icell = 1, ncell
       cc(:,icell) = 0.50d0 * cc(:,icell) / cv(icell)
     end do
-    call check_metrics( ncell, nface, cv, cc, fc, fs, dn )
 
   end subroutine mesh_metrics_tapenade
 
