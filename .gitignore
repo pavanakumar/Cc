@@ -18,4 +18,11 @@ test/cavity/constant/polyMesh/neighbour
 test/cavity/constant/polyMesh/boundary
 test/cavity/*.plt
 lua/*
+*.Plo
+*.lo
+*.la
+config.*
+.dirstamp
+*.lai
+stamp-h1
 
