@@ -78,7 +78,7 @@ distclean: clean
 	-@rm -f make.of.inc
 	-@rm -f Cc
 	-@rm -f Cc.x
-	-@rm -rf Make lnInclude
+	-@rm -rf mesh/Make mesh/lnInclude
 	-@rm -f libCc_ofreader*
 	-@rm -f ./mesh/*.dep
 

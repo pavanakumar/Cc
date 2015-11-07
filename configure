@@ -10,23 +10,23 @@ OF_SRC_DIR=$SRC_DIR/mesh
 #### Creates the OpenFOAM make files
 of_makefile()
 {
-  if [ ! -e "$SRC_DIR/Make" ]; then
+  if [ ! -e "$OF_SRC_DIR/Make" ]; then
     echo "Creating Make folder"
-    mkdir $SRC_DIR/Make
+    mkdir $OF_SRC_DIR/Make
   fi
   #####  Create Make/files
-  echo "$OF_SRC_DIR/ofreader.cpp" > $SRC_DIR/Make/files
-  echo "LIB = $SRC_DIR/libCc_ofreader" >> $SRC_DIR/Make/files
+  echo "$OF_SRC_DIR/ofreader.cpp" > $OF_SRC_DIR/Make/files
+  echo "LIB = $SRC_DIR/libCc_ofreader" >> $OF_SRC_DIR/Make/files
   #####  Create Make/options
-  echo "EXE_INC = \\" > $SRC_DIR/Make/options
-  echo "-g -I\$(LIB_SRC)/finiteVolume/lnInclude \\" >> $SRC_DIR/Make/options
-  echo "-I\$(LIB_SRC)/meshTools/lnInclude \\" >> $SRC_DIR/Make/options
-  echo "-I$SRC_DIR/mesh" >> $SRC_DIR/Make/options
-  echo "" >> $SRC_DIR/Make/options
-  echo "" >> $SRC_DIR/Make/options
-  echo "EXE_LIBS = \\" >> $SRC_DIR/Make/options
-  echo "  -lfiniteVolume -lmeshTools" >> $SRC_DIR/Make/options
-  echo "" >> $SRC_DIR/Make/options
+  echo "EXE_INC = \\" > $OF_SRC_DIR/Make/options
+  echo "-g -I\$(LIB_SRC)/finiteVolume/lnInclude \\" >> $OF_SRC_DIR/Make/options
+  echo "-I\$(LIB_SRC)/meshTools/lnInclude \\" >> $OF_SRC_DIR/Make/options
+  echo "-I$SRC_DIR/mesh" >> $OF_SRC_DIR/Make/options
+  echo "" >> $OF_SRC_DIR/Make/options
+  echo "" >> $OF_SRC_DIR/Make/options
+  echo "EXE_LIBS = \\" >> $OF_SRC_DIR/Make/options
+  echo "  -lfiniteVolume -lmeshTools" >> $OF_SRC_DIR/Make/options
+  echo "" >> $OF_SRC_DIR/Make/options
 }
 
 write_of_make_inc()
@@ -44,6 +44,12 @@ write_Cc_script()
   chmod +x $SRC_DIR/Cc
 }
 
+install_luajit()
+{
+  cd $SRC_DIR/luajit-2.0
+  make
+}
+
 ##### Create the OpenFOAM Make script ###
 if [ "$OPENFOAM_ROOT" ]; then
   if [ -f "$OPENFOAM_ROOT/etc/bashrc" ]; then
@@ -51,8 +57,9 @@ if [ "$OPENFOAM_ROOT" ]; then
     of_makefile
     write_of_make_inc
     write_Cc_script
+    cd $OF_SRC_DIR
     wclean; wmake
-    cd $SRC_DIR
+    install_luajit
   else
     echo "The OpenFOAM bashrc script does not exist at $OPENFOAM_ROOT/etc/bashrc"
     echo "Check the path set in OPENFOAM_ROOT"
