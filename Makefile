@@ -81,4 +81,7 @@ distclean: clean
 	-@rm -rf mesh/Make mesh/lnInclude
 	-@rm -f libCc_ofreader*
 	-@rm -f ./mesh/*.dep
+	-@rm -rf ./lua
+	cd luaposix && $(MAKE) distclean
+	cd luajit-2.0 && $(MAKE) clean
 
