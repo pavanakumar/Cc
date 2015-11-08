@@ -11,6 +11,7 @@ module Constants
 end module Constants
 
 module Mesh
+  use iso_c_binding
   use Constants
   implicit none
 !!!!!!!!!!!!  CONSTANTS  !!!!!!!!!!!!!
@@ -23,7 +24,7 @@ module Mesh
                         inlet_bc_ = 3, outlet_bc_ = 4, riemann_bc_ = 5, &
                         empty_bc_ = 6
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  type polyMesh
+  type :: polyMesh
     !!! Sizes
     integer :: nnode = 0, nface = 0, ninternalface = 0, &
                ncell = 0, npatch = 0, ilevel = 0, nlevel = 0
@@ -166,11 +167,6 @@ module Mesh
       call mesh_metrics( pm(ilvl - 1) ) 
     end do
 
-    do ilvl = nlevel, 1, -1
-      call write_pm_tecio( ilvl, 0, pm(ilvl)%nnode, pm(ilvl)%ncell,&
-                          pm(ilvl)%nface, pm(ilvl)%ninternalface,&
-                          pm(ilvl)%x, pm(ilvl)%facelr, pm(ilvl)%facenode )
-    end do
   end subroutine create_mg_levels
 
   subroutine build_pm_coarse( pmf, pmc, gr )
