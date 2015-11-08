@@ -25,4 +25,6 @@ config.*
 .dirstamp
 *.lai
 stamp-h1
+luaposix/Makefile
+luaposix/libtool
 
