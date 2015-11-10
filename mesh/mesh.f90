@@ -180,13 +180,13 @@ module Mesh
     pmc%ilevel = pmf%ilevel - 1
     pmc%nlevel = pmf%nlevel
     !! Find unique internal faces in coarse mesh
-    allocate(tmplr(2, pmf%nface))
+    allocate(tmplr(lr_, pmf%nface))
     ninternalface = 0
     do iface = 1, pmf%nface
-      tmplr(1, iface) = pmf%mgpart(pmf%facelr(1, iface)) + 1
+      tmplr(lcell_, iface) = pmf%mgpart(pmf%facelr(lcell_, iface)) + 1
       if( iface .le. pmf%ninternalface ) then
-        tmplr(2, iface) = pmf%mgpart(pmf%facelr(2, iface)) + 1
-        if( tmplr(1, iface) .ne. tmplr(2, iface) ) then
+        tmplr(rcell_, iface) = pmf%mgpart(pmf%facelr(rcell_, iface)) + 1
+        if( tmplr(lcell_, iface) .ne. tmplr(rcell_, iface) ) then
           ninternalface = ninternalface + 1
         end if
       end if
@@ -205,7 +205,7 @@ module Mesh
     pmc%facelr    = 0
     !! Copy temp face data to coarse mesh
     do iface = 1, pmf%ninternalface
-      if( tmplr(1, iface) .ne. tmplr(2, iface) ) then
+      if( tmplr(lcell_, iface) .ne. tmplr(rcell_, iface) ) then
         ninternalface = ninternalface + 1
         pmc%facelr(:, ninternalface)   = tmplr(:, iface)
         pmc%facenode(:, ninternalface) = pmf%facenode(:, iface)
@@ -365,8 +365,8 @@ module Mesh
     !!! Allocations
     gr%nvtx = pm%ncell
     allocate( gr%xadj(gr%nvtx + 1), &
-              gr%adjncy(2 * pm%ninternalface), &
-              gr%adjwgt(2 * pm%ninternalface), &
+              gr%adjncy(lr_ * pm%ninternalface), &
+              gr%adjwgt(lr_ * pm%ninternalface), &
               gr%vsurf(gr%nvtx), gr%vvol(gr%nvtx) )
     gr%xadj   = 0
     gr%adjncy = -1
@@ -374,35 +374,35 @@ module Mesh
     gr%vvol   = pm%cv
     !!! First pass form the sizes
     do i = 1, pm%ninternalface
-      gr%xadj(pm%facelr(1, i)) = gr%xadj(pm%facelr(1, i)) + 1
-      gr%xadj(pm%facelr(2, i)) = gr%xadj(pm%facelr(2, i)) + 1
+      gr%xadj(pm%facelr(lcell_, i)) = gr%xadj(pm%facelr(lcell_, i)) + 1
+      gr%xadj(pm%facelr(rcell_, i)) = gr%xadj(pm%facelr(rcell_, i)) + 1
     end do
     gr%xadj = cshift(gr%xadj, gr%nvtx)
     gr%xadj(1) = 0
     write(*,*) gr%xadj
     !!! All boundary face surface area (attach to cell)
     do i = pm%ninternalface + 1, pm%nface
-      gr%vsurf(pm%facelr(1, i)) = gr%vsurf(pm%facelr(1, i)) + pm%fs(i)
+      gr%vsurf(pm%facelr(lcell_, i)) = gr%vsurf(pm%facelr(lcell_, i)) + pm%fs(i)
     end do
     !!! Form the xadj offsets (Can replace with intrisic?)
     do i = 1, gr%nvtx
       gr%xadj(i+1) = gr%xadj(i) + gr%xadj(i+1)
     end do
     !!! Check size match
-    if( gr%xadj(gr%nvtx + 1) .ne. (2 * pm%ninternalface) ) then
+    if( gr%xadj(gr%nvtx + 1) .ne. (lr_ * pm%ninternalface) ) then
       write(*,*) 'Error: Sizes of facelr xadj do not match ninternalface', &
         gr%xadj(gr%nvtx + 1), 2 * pm%ninternalface
     end if
     !!! Second pass form the adjncy
     do i = 1, pm%ninternalface
       !!! Push the left face data
-      gr%xadj(pm%facelr(1, i)) = gr%xadj(pm%facelr(1, i)) + 1
-      gr%adjncy(gr%xadj(pm%facelr(1, i))) = pm%facelr(2, i) - 1
-      gr%adjwgt(gr%xadj(pm%facelr(1, i))) = pm%fs(i)
+      gr%xadj(pm%facelr(lcell_, i)) = gr%xadj(pm%facelr(lcell_, i)) + 1
+      gr%adjncy(gr%xadj(pm%facelr(lcell_, i))) = pm%facelr(rcell_, i) - 1
+      gr%adjwgt(gr%xadj(pm%facelr(lcell_, i))) = pm%fs(i)
       !!! Push the right face data
-      gr%xadj(pm%facelr(2, i)) = gr%xadj(pm%facelr(2, i)) + 1
-      gr%adjncy(gr%xadj(pm%facelr(2, i))) = pm%facelr(1, i) - 1
-      gr%adjwgt(gr%xadj(pm%facelr(2, i))) = pm%fs(i)
+      gr%xadj(pm%facelr(rcell_, i)) = gr%xadj(pm%facelr(rcell_, i)) + 1
+      gr%adjncy(gr%xadj(pm%facelr(rcell_, i))) = pm%facelr(lcell_, i) - 1
+      gr%adjwgt(gr%xadj(pm%facelr(rcell_, i))) = pm%fs(i)
     end do
     gr%xadj = cshift(gr%xadj, gr%nvtx)
     gr%xadj(1) = 0
@@ -413,6 +413,99 @@ module Mesh
     end if
 
   end subroutine pm_to_graph
+
+  subroutine cell_face_xadj_adjncy(ninternalface, ncell, facelr, xadj, adjncy)
+    implicit none
+    integer, intent(in)  :: ninternalface, ncell
+    integer, intent(in)  :: facelr(lr_, ninternalface)
+    integer, intent(out) :: xadj(ncell + 1), &
+                            adjncy(lr_ * ninternalface)
+    !--------------------------------------------------------
+    integer, dimension(ncell) :: counter
+    integer :: iface, lcell, rcell, icell
+
+    ! first sweep: count how many faces are connected to each cell
+    counter = 0
+    do iface = 1, ninternalface
+      lcell = facelr(lcell_, iface)
+      rcell = facelr(rcell_, iface)
+      counter(lcell) = counter(lcell) + 1
+      counter(rcell) = counter(rcell) + 1
+    end do
+
+    ! use the counter to initialise xadj
+    xadj(1) = 1
+    do icell = 1, ncell
+      xadj(icell + 1) = xadj(icell) + counter(icell)
+    end do
+    ! reset the counter, we use it again
+    counter = 0
+
+    ! fill the adjncy array. For each cell, we fill
+    ! the section that starts at the position marked by xadj
+    do iface = 1, ninternalface
+      lcell = facelr(lcell_, iface)
+      rcell = facelr(rcell_, iface)
+      adjncy(xadj(lcell) + counter(lcell)) = iface
+      adjncy(xadj(rcell) + counter(rcell)) = iface
+      counter(lcell) = counter(lcell) + 1
+      counter(rcell) = counter(rcell) + 1
+    end do
+    
+  end subroutine cell_face_xadj_adjncy
+
+  subroutine face_colouring(ninternalface, ncell, facelr, colour)
+    implicit none
+    integer, intent(in)    :: ninternalface, ncell
+    integer, intent(inout) :: facelr(lr_, ninternalface), colour(ninternalface)
+    !--------------------------------------------------------
+    integer :: iface, lcell, rcell, ileft, iright
+    integer,dimension(lr_ * ninternalface) :: adjncy
+    integer,dimension(ncell + 1) :: xadj
+    integer :: mycolour, ncolor
+    logical :: free
+    !! Form the face-cell xadj and adjncy
+    call cell_face_xadj_adjncy(ninternalface, ncell, facelr, xadj, adjncy)
+    !! Init colours to zero
+    colour = 0
+    !! Loop over all faces
+    do iface = 1, ninternalface
+      lcell = facelr(lcell_,iface)
+      rcell = facelr(rcell_,iface)
+      ! go through the colors and check if we can still assign them to this face
+      mycolour = 1
+      do
+        ! start assuming that we can use this color
+        free = .true.
+        ! check if the color is already taken by any other face connected to left cell
+        do ileft = xadj(lcell), xadj(lcell + 1) - 1
+          if(mycolour .eq. colour( adjncy(ileft) ) )then
+            free = .false.
+          end if
+        end do
+        ! check if the color is already taken by any other face connected to right cell
+        do iright = xadj(rcell), xadj(rcell + 1) - 1
+          if(mycolour .eq. colour( adjncy(iright) )) then
+            free = .false.
+          end if
+        end do
+        ! if the color wasn't used by any other face, we can still assign it.
+        ! exit here and don't change c any further
+        if(free) then
+          exit
+        ! if it isn't free any more, we try the next color. Go back
+        ! and do another cycle.
+        else
+          mycolour = mycolour + 1
+          cycle
+        end if
+      end do
+      ! if the loop terminated, it found a free color and stored it in mycolour. We assign
+      ! this color to i^{th} face now.
+      colour(iface) = mycolour
+    end do
+
+  end subroutine face_colouring
 
 end module Mesh
 
