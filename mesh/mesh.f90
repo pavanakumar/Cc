@@ -116,7 +116,7 @@ module Mesh
     type(polyMesh), intent(inout) :: pm(nlevel)
     !!! Local variables
     integer :: ilvl
- 
+    integer, allocatable :: colour(:)
     !!! Make the meshes aware of the multi-grid 
     do ilvl = 1, nlevel
       if( ipar .eq. enable_parallel_ ) then
@@ -135,6 +135,9 @@ module Mesh
     call get_pm_nodes( pm(nlevel)%nnode, pm(nlevel)%x )
     call get_pm_faces( pm(nlevel)%nface, pm(nlevel)%ninternalface, &
                        pm(nlevel)%facelr, pm(nlevel)%facenode )
+    allocate( colour(pm(nlevel)%ninternalface) )
+    call face_colouring( pm(nlevel)%ninternalface, pm(nlevel)%ncell, &
+                         pm(nlevel)%facelr, colour )
     call get_pm_patches( pm(nlevel)%npatch, pm(nlevel)%patchdata )
     !!! Calculate the metrics
     call mesh_metrics( pm(nlevel) )
