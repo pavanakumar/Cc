@@ -38,15 +38,18 @@ module Mesh
     real(kind=8), dimension(:,:), pointer     :: x
     real(kind=8), dimension(:,:), allocatable :: cc, dn, fc
     real(kind=8), dimension(:), allocatable   :: cv, fs
-    !!! Parallel run (global numbering of local entities)
+    !!! MPI parallel run (global numbering of local entities)
     logical                            :: parallel = .false.
     integer, dimension(:), pointer     :: cellgid, nodegid, facegid
+    !!! OMP parallel run data
+    integer                            :: ncolour
+    integer, dimension(:), allocatable :: colourxadj
     !!! Multigrid variables
-    integer, dimension(:), allocatable     :: mgpart
-
+    integer, dimension(:), allocatable :: mgpart
   end type polyMesh
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  type crsGraph
+  type :: crsGraph
     integer                                 :: nvtx = 0, npart = 0
     integer, dimension(:), allocatable      :: xadj, adjncy
     real(kind=8), dimension(:), allocatable :: adjwgt, vvol, vsurf
@@ -116,7 +119,6 @@ module Mesh
     type(polyMesh), intent(inout) :: pm(nlevel)
     !!! Local variables
     integer :: ilvl
-    integer, allocatable :: colour(:)
     !!! Make the meshes aware of the multi-grid 
     do ilvl = 1, nlevel
       if( ipar .eq. enable_parallel_ ) then
@@ -126,18 +128,20 @@ module Mesh
       pm(ilvl)%ilevel = ilvl
       nullify(pm(ilvl)%x)
     end do
-    !!! Read in the finest mesh from OpenFOAM    
+    !!! Read in the finest mesh from OpenFOAM
     call init_of_mesh( ipar )
     call get_pm_sizes( pm(nlevel)%nnode, pm(nlevel)%nface, &
                        pm(nlevel)%ninternalface, &
                        pm(nlevel)%ncell, pm(nlevel)%npatch )
     call allocate_pm( pm(nlevel) )
     call get_pm_nodes( pm(nlevel)%nnode, pm(nlevel)%x )
+!!! Dummy face data
     call get_pm_faces( pm(nlevel)%nface, pm(nlevel)%ninternalface, &
                        pm(nlevel)%facelr, pm(nlevel)%facenode )
-    allocate( colour(pm(nlevel)%ninternalface) )
-    call face_colouring( pm(nlevel)%ninternalface, pm(nlevel)%ncell, &
-                         pm(nlevel)%facelr, colour )
+    call colour_pm_faces( pm(nlevel)%ninternalface, pm(nlevel)%ncell, &
+                          pm(nlevel)%facelr, &
+                          pm(nlevel)%facenode, pm(nlevel)%ncolour, &
+                          pm(nlevel)%colourxadj )
     call get_pm_patches( pm(nlevel)%npatch, pm(nlevel)%patchdata )
     !!! Calculate the metrics
     call mesh_metrics( pm(nlevel) )
@@ -382,7 +386,7 @@ module Mesh
     end do
     gr%xadj = cshift(gr%xadj, gr%nvtx)
     gr%xadj(1) = 0
-    write(*,*) gr%xadj
+    !write(*,*) gr%xadj
     !!! All boundary face surface area (attach to cell)
     do i = pm%ninternalface + 1, pm%nface
       gr%vsurf(pm%facelr(lcell_, i)) = gr%vsurf(pm%facelr(lcell_, i)) + pm%fs(i)
@@ -409,7 +413,7 @@ module Mesh
     end do
     gr%xadj = cshift(gr%xadj, gr%nvtx)
     gr%xadj(1) = 0
-    write(*,*) gr%xadj
+    !write(*,*) gr%xadj
     !!! Check to see if the adjncy array is formed correctly
     if(count(gr%adjncy .lt. 0) .ne. 0) then
       write(*,*) 'Error: Adjncy array from edge2nodes not constructed correctly'
@@ -457,10 +461,11 @@ module Mesh
     
   end subroutine cell_face_xadj_adjncy
 
-  subroutine face_colouring(ninternalface, ncell, facelr, colour)
+  subroutine face_colouring(ninternalface, ncell, facelr, ncolour, colour)
     implicit none
     integer, intent(in)    :: ninternalface, ncell
     integer, intent(inout) :: facelr(lr_, ninternalface), colour(ninternalface)
+    integer, intent(out)   :: ncolour
     !--------------------------------------------------------
     integer :: iface, lcell, rcell, ileft, iright
     integer,dimension(lr_ * ninternalface) :: adjncy
@@ -507,8 +512,59 @@ module Mesh
       ! this color to i^{th} face now.
       colour(iface) = mycolour
     end do
+    !! Total number of colours
+    ncolour = maxval(colour)
+    !! Check if everything went well
+    if( minval(colour) .eq. 0 ) then
+      write(*,*) "Error: in colour module setting ncolour to zero"
+      ncolour = 0
+    end if
 
   end subroutine face_colouring
+
+  subroutine colour_pm_faces( ninternalface, ncell, facelr, &
+                              facenode, ncolour, colourxadj )
+    implicit none 
+    integer, intent(in) :: ninternalface, ncell
+    integer, intent(inout) :: facelr(lr_, ninternalface), &
+                              facenode(quadp1_, ninternalface)
+    integer, intent(out) :: ncolour
+    integer, intent(out), allocatable :: colourxadj(:)
+    !!! Local vars
+    integer :: iface, icolour
+    integer, allocatable :: colour(:), dummylr(:,:), &
+                            dummynode(:,:)
+!!! Colouring of faces
+    allocate(dummylr(lr_, ninternalface), &
+             dummynode(quadp1_, ninternalface), &
+             colour(ninternalface))
+!!! Copy all internal faces to dummy arrays to calculate colouring
+    dummylr(:, 1:ninternalface) = facelr(:, 1:ninternalface)
+    dummynode(:, 1:ninternalface) = facenode(:, 1:ninternalface)
+    call face_colouring( ninternalface, ncell, dummylr, ncolour, colour )
+    write(*,*) "Total colours = ", ncolour
+!!! Construct colour xadj array
+    allocate(colourxadj(ncolour + 1))
+    colourxadj = 0
+    do iface = 1, ninternalface
+      colourxadj(colour(iface) + 1) = colourxadj(colour(iface) + 1) + 1
+    end do
+    colourxadj(1) = 1
+    do icolour = 1, ncolour
+      colourxadj(icolour + 1) = colourxadj(icolour) + colourxadj(icolour + 1)
+    end do
+!!! Order faces by colour
+    do iface = 1, ninternalface
+      icolour = colour(iface)
+      facelr(:, colourxadj(icolour))   = dummylr(:, iface)
+      facenode(:, colourxadj(icolour)) = dummynode(:, iface)
+      colourxadj(icolour) = colourxadj(icolour) + 1
+    end do
+    colourxadj = cshift(colourxadj, ncolour)
+    colourxadj(1) = 1   
+    deallocate( dummylr, dummynode, colour )
+!!!!
+  end subroutine colour_pm_faces
 
 end module Mesh
 
