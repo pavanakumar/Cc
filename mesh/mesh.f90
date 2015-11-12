@@ -161,6 +161,7 @@ module Mesh
     integer :: ilvl, minsize=1, maxsize=10, &
                options(4) = (/ 4, 6, 128, 3 /), nmoves
     type(crsGraph) :: gr
+    real(kind=8) :: sum_fine, sum_coarse
  
     !!! Multi-grid mgridgen
     do ilvl = nlevel, 2, -1
@@ -170,7 +171,18 @@ module Mesh
                          pm(ilvl)%mgpart )
 !      call fix_mg_degeneracy( pm(ilvl) )
       call build_pm_coarse( pm(ilvl), pm(ilvl - 1), gr )
+      call colour_pm_faces( pm(ilvl - 1)%nface, pm(ilvl - 1)%ninternalface, &
+                            pm(ilvl - 1)%ncell, pm(ilvl - 1)%facelr, &
+                            pm(ilvl - 1)%facenode, pm(ilvl - 1)%ncolour, &
+                            pm(ilvl -1)%colourxadj )
       call mesh_metrics( pm(ilvl - 1) ) 
+      !! Check the multigrid volumes      
+      sum_fine   = sum(pm(ilvl)%cv)
+      sum_coarse = sum(pm(ilvl - 1)%cv)
+      if( abs( (sum_fine - sum_coarse) / sum_fine ) .gt. 1.0d-10 ) then 
+        write(*,*) "Error: In metrics", sum_fine, sum_coarse
+      end if
+
     end do
 
   end subroutine create_mg_levels
@@ -241,22 +253,13 @@ module Mesh
     implicit none
     type( polyMesh ) :: pm
     !!! Tapenade diff function
-    if( pm%ilevel .eq. pm%nlevel ) then
-      call mesh_metrics_tapenade_omp &
+    call mesh_metrics_tapenade_omp &
            ( pm%nnode, pm%nface, &
              pm%ninternalface, pm%ncell, &
              pm%ncolour, pm%colourxadj, &
              pm%x, pm%facelr, &
              pm%facenode, pm%cv, pm%cc, &
              pm%dn, pm%fs, pm%fc )
-    else
-      call mesh_metrics_tapenade &
-           ( pm%nnode, pm%nface, &
-             pm%ninternalface, pm%ncell, &
-             pm%x, pm%facelr, &
-             pm%facenode, pm%cv, pm%cc, &
-             pm%dn, pm%fs, pm%fc )
-    end if
     !!! Check metrics only if fine mesh
     if( pm%nlevel .eq. pm%ilevel ) then
       call check_metrics &
@@ -627,7 +630,6 @@ module Mesh
     dummylr(:, 1:ninternalface) = facelr(:, 1:ninternalface)
     dummynode(:, 1:ninternalface) = facenode(:, 1:ninternalface)
     call face_colouring( ninternalface, ncell, dummylr, ncolour, colour )
-    write(*,*) "Total colours = ", ncolour
 !!! Construct colour xadj array
     allocate(colourxadj(ncolour + 2))
     colourxadj = 0
@@ -649,6 +651,8 @@ module Mesh
     colourxadj(1) = 1   
     colourxadj( ncolour + 2 ) = nface + 1
     deallocate( dummylr, dummynode, colour )
+    write(*,*) "Total colours = ", ncolour
+    write(*,*) "Colour Xadj = ", colourxadj
 !!!!
   end subroutine colour_pm_faces
 
