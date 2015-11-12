@@ -138,9 +138,10 @@ module Mesh
 !!! Dummy face data
     call get_pm_faces( pm(nlevel)%nface, pm(nlevel)%ninternalface, &
                        pm(nlevel)%facelr, pm(nlevel)%facenode )
-    call colour_pm_faces( pm(nlevel)%ninternalface, pm(nlevel)%ncell, &
-                          pm(nlevel)%facelr, pm(nlevel)%facenode, &
-                          pm(nlevel)%ncolour, pm(nlevel)%colourxadj )
+    call colour_pm_faces( pm(nlevel)%nface, pm(nlevel)%ninternalface, &
+                          pm(nlevel)%ncell, pm(nlevel)%facelr, &
+                          pm(nlevel)%facenode, pm(nlevel)%ncolour, &
+                          pm(nlevel)%colourxadj )
     call get_pm_patches( pm(nlevel)%npatch, pm(nlevel)%patchdata )
     !!! Calculate the metrics
     call mesh_metrics( pm(nlevel) )
@@ -240,12 +241,22 @@ module Mesh
     implicit none
     type( polyMesh ) :: pm
     !!! Tapenade diff function
-    call mesh_metrics_tapenade &
-         ( pm%nnode, pm%nface, &
-           pm%ninternalface, pm%ncell, &
-           pm%x, pm%facelr, &
-           pm%facenode, pm%cv, pm%cc, &
-           pm%dn, pm%fs, pm%fc )
+    if( pm%ilevel .eq. pm%nlevel ) then
+      call mesh_metrics_tapenade_omp &
+           ( pm%nnode, pm%nface, &
+             pm%ninternalface, pm%ncell, &
+             pm%ncolour, pm%colourxadj, &
+             pm%x, pm%facelr, &
+             pm%facenode, pm%cv, pm%cc, &
+             pm%dn, pm%fs, pm%fc )
+    else
+      call mesh_metrics_tapenade &
+           ( pm%nnode, pm%nface, &
+             pm%ninternalface, pm%ncell, &
+             pm%x, pm%facelr, &
+             pm%facenode, pm%cv, pm%cc, &
+             pm%dn, pm%fs, pm%fc )
+    end if
     !!! Check metrics only if fine mesh
     if( pm%nlevel .eq. pm%ilevel ) then
       call check_metrics &
@@ -286,8 +297,7 @@ module Mesh
 
   subroutine mesh_metrics_tapenade( &
     nnode, nface, ninternalface, ncell, &
-    x, facelr, facenode, &
-    cv, cc, dn, fs, fc )
+    x, facelr, facenode, cv, cc, dn, fs, fc )
     implicit none
     integer, intent(in)         :: nnode, nface, ninternalface, ncell
     real(kind=8), intent(in)    :: x(dim_, nnode)
@@ -319,7 +329,7 @@ module Mesh
         fvolc = sum(r1 * r1) + sum(r2 * r2) + sum(r3 * r3) + &
                 sum(r1 * r2) + sum(r2 * r3) + sum(r1 * r3)
         fvolc = fvolc * oneby12_ * cross_prod((r2 - r1), (r3 - r1))
-!!! Ruled face
+! Ruled face
       else if( facenode(1, iface) .eq. quad_ ) then
         r4 = x(:, facenode( 5, iface ))
         !!! Face centroid
@@ -333,13 +343,13 @@ module Mesh
                             func_1234(r1, r2, r3, r4, xi1_, eta2_) + &
                             func_1234(r1, r2, r3, r4, xi2_, eta1_) + &
                             func_1234(r1, r2, r3, r4, xi2_, eta2_) )
-!!! Error unknow face type
+! Error unknow face type
       else
         write(*,*) "Something terribly wrong ... Cannot have more than 4 nodes for a face"
         stop
       end if
-!!! Add CC/CV contribution of face
-      !!!! Face volume contribution
+! Add CC/CV contribution of face
+    !!!! Face volume contribution
       fvol     = oneby3_ * sum( fc(:, iface) * dn(:, iface) ) * fs(iface)
       cv(il)   = cv(il)   + fvol
       cc(:,il) = cc(:,il) + fvolc
@@ -348,11 +358,87 @@ module Mesh
         cc(:,ir) = cc(:,ir) - fvolc
       end if
     end do
+    !! Do cell summation
     do icell = 1, ncell
       cc(:,icell) = 0.50d0 * cc(:,icell) / cv(icell)
     end do
 
   end subroutine mesh_metrics_tapenade
+
+  subroutine mesh_metrics_tapenade_omp( &
+    nnode, nface, ninternalface, ncell, &
+    ncolour, colourxadj, x, facelr, facenode, &
+    cv, cc, dn, fs, fc )
+    implicit none
+    integer, intent(in)         :: nnode, nface, ninternalface, ncell, ncolour
+    integer, intent(in)         :: colourxadj(ncolour + 2)
+    real(kind=8), intent(in)    :: x(dim_, nnode)
+    integer, intent(in)         :: facelr(lr_, nface), facenode(quadp1_, nface)
+    real(kind=8), intent(inout) :: cv(ncell), cc(dim_, ncell)
+    real(kind=8), intent(inout) :: dn(dim_, nface), fs(nface), fc(dim_, nface)
+    !!! Local variables
+    integer :: iface, inode, i, il, ir, icell, icolour
+    real(kind=8) :: r1(dim_), r2(dim_), r3(dim_), r4(dim_), fvol, fvolc(dim_)
+
+    !!! Zero out everything    
+    cv = 0.0d0; cc = 0.0d0
+!    write(*,*) "colourxadj = ", colourxadj
+    !!! Calculate the face centroids, area, and unit normal vector
+    do icolour = 1, ncolour + 1 !!! Note that colourxadj(ncolour + 2) is till nface
+      do iface = colourxadj(icolour), colourxadj(icolour + 1) - 1
+        r1 = x(:, facenode( 2, iface ))
+        r2 = x(:, facenode( 3, iface ))
+        r3 = x(:, facenode( 4, iface ))
+        il = facelr( lcell_, iface)
+        ir = facelr( rcell_, iface)
+!!! Planar face
+        if( facenode(1, iface) .eq. tri_ ) then
+          !!! Face centroid
+          fc(:, iface) = oneby3_ * ( r1 + r2 + r3 )
+          !!! Face normal and area
+          dn(:, iface) = 0.50d0 * cross_prod( (r2 - r1), (r3 - r1) )
+          fs(iface)    = sqrt( sum( dn(:, iface) * dn(:, iface) ) )
+          dn(:, iface) = dn(:, iface) / fs(iface)
+          !!! Face cell centroid contribution
+          fvolc = sum(r1 * r1) + sum(r2 * r2) + sum(r3 * r3) + &
+                  sum(r1 * r2) + sum(r2 * r3) + sum(r1 * r3)
+          fvolc = fvolc * oneby12_ * cross_prod((r2 - r1), (r3 - r1))
+!!! Ruled face
+        else if( facenode(1, iface) .eq. quad_ ) then
+          r4 = x(:, facenode( 5, iface ))
+          !!! Face centroid
+          fc(:, iface) = 0.250d0 * ( r1 + r2 + r3 + r4 )
+          !!! Face normal and area
+          dn(:, iface) = 0.50d0 * cross_prod( (r3 - r1), (r4 - r2) )
+          fs(iface)    = sqrt( sum( dn(:, iface) * dn(:, iface) ) )
+          dn(:, iface) = dn(:, iface) / fs(iface)
+          !!! Face cell centroid contribution (Gauss quadrture)
+          fvolc = 0.250d0 * ( func_1234(r1, r2, r3, r4, xi1_, eta1_) + &
+                              func_1234(r1, r2, r3, r4, xi1_, eta2_) + &
+                              func_1234(r1, r2, r3, r4, xi2_, eta1_) + &
+                              func_1234(r1, r2, r3, r4, xi2_, eta2_) )
+!!! Error unknow face type
+        else
+          write(*,*) "Something terribly wrong ... Cannot have more than 4 nodes for a face"
+          stop
+        end if
+!!! Add CC/CV contribution of face
+      !!!! Face volume contribution
+        fvol     = oneby3_ * sum( fc(:, iface) * dn(:, iface) ) * fs(iface)
+        cv(il)   = cv(il)   + fvol
+        cc(:,il) = cc(:,il) + fvolc
+        if( iface .le. ninternalface ) then
+          cv(ir)   = cv(ir)   - fvol
+          cc(:,ir) = cc(:,ir) - fvolc
+        end if
+      end do
+    end do
+    !! Do cell summation
+    do icell = 1, ncell
+      cc(:,icell) = 0.50d0 * cc(:,icell) / cv(icell)
+    end do
+
+  end subroutine mesh_metrics_tapenade_omp
 
   !!! Construct the CSR graph from the edge2nodes data, which
   !!! are input to the METIS partitioner routines 
@@ -521,12 +607,12 @@ module Mesh
 
   end subroutine face_colouring
 
-  subroutine colour_pm_faces( ninternalface, ncell, facelr, &
+  subroutine colour_pm_faces( nface, ninternalface, ncell, facelr, &
                               facenode, ncolour, colourxadj )
     implicit none 
-    integer, intent(in) :: ninternalface, ncell
-    integer, intent(inout) :: facelr(lr_, ninternalface), &
-                              facenode(quadp1_, ninternalface)
+    integer, intent(in) :: nface, ninternalface, ncell
+    integer, intent(inout) :: facelr(lr_, nface), &
+                              facenode(quadp1_, nface)
     integer, intent(out) :: ncolour
     integer, intent(out), allocatable :: colourxadj(:)
     !!! Local vars
@@ -543,7 +629,7 @@ module Mesh
     call face_colouring( ninternalface, ncell, dummylr, ncolour, colour )
     write(*,*) "Total colours = ", ncolour
 !!! Construct colour xadj array
-    allocate(colourxadj(ncolour + 1))
+    allocate(colourxadj(ncolour + 2))
     colourxadj = 0
     do iface = 1, ninternalface
       colourxadj(colour(iface) + 1) = colourxadj(colour(iface) + 1) + 1
@@ -559,8 +645,9 @@ module Mesh
       facenode(:, colourxadj(icolour)) = dummynode(:, iface)
       colourxadj(icolour) = colourxadj(icolour) + 1
     end do
-    colourxadj = cshift(colourxadj, ncolour)
+    colourxadj = cshift(colourxadj, ncolour + 1)
     colourxadj(1) = 1   
+    colourxadj( ncolour + 2 ) = nface + 1
     deallocate( dummylr, dummynode, colour )
 !!!!
   end subroutine colour_pm_faces
