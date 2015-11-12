@@ -139,9 +139,8 @@ module Mesh
     call get_pm_faces( pm(nlevel)%nface, pm(nlevel)%ninternalface, &
                        pm(nlevel)%facelr, pm(nlevel)%facenode )
     call colour_pm_faces( pm(nlevel)%ninternalface, pm(nlevel)%ncell, &
-                          pm(nlevel)%facelr, &
-                          pm(nlevel)%facenode, pm(nlevel)%ncolour, &
-                          pm(nlevel)%colourxadj )
+                          pm(nlevel)%facelr, pm(nlevel)%facenode, &
+                          pm(nlevel)%ncolour, pm(nlevel)%colourxadj )
     call get_pm_patches( pm(nlevel)%npatch, pm(nlevel)%patchdata )
     !!! Calculate the metrics
     call mesh_metrics( pm(nlevel) )
