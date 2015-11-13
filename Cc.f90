@@ -13,6 +13,7 @@ program Cc
   if( ipar .eq. enable_parallel_ ) then
     call MPI_Comm_rank( MPI_COMM_WORLD, rank, ierr )
   end if
+!  call tecio_write( rank, nlevel, pm(1:nlevel) )
   !! Write the MG levels for each rank
   do ilvl = nlevel, 1, -1
     call write_pm_tecio( ilvl, rank, pm(ilvl)%nnode, pm(ilvl)%ncell,&

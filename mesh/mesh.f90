@@ -656,5 +656,39 @@ module Mesh
 !!!!
   end subroutine colour_pm_faces
 
+  subroutine tecio_write( rank, nlevel, pm )
+    implicit none
+    integer :: rank, nlevel
+    type(polyMesh) :: pm(nlevel)
+    !! Local vars
+    real(kind=8) :: tempxyz( pm(nlevel)%nnode ), soltime
+    integer :: ftype, debug, sid, pzone, &
+               dpack, isdouble, shrconn, ztype, &
+               varshare(3) = (/ 1, 1, 1 /), ilvl
+    integer, pointer :: NullPtr => Null()
+    real(kind=8) :: stime = 0.0d0
+    character :: nullchar
+    integer :: ierr, tecini112, tecend112
+    !!std::string _zone_name, _var_list, _file_name, _scratch_dir;
+    !!std::string _title;
+    !!INTEGER4 *_pasiv_var_arr, *_val_loc_arr
+    debug = 0; ftype = 1; isdouble = 1
+    ierr = tecini112( 'Cc'//nullchar, 'x y z'//nullchar, &
+                      'mg_mesh.plt'//nullchar, '.'//nullchar, &
+                      debug, ftype, isdouble )
+    ztype = 7 !FEPOLYHEDRON
+!    ierr = teczne112( "Finest", ztype, pm(nlevel)%nnode, &
+!                      pm(nlevel)%ncell, pm(nlevel)%nface, &
+!                      0, 0, 0, stime, sid, pzone, dpack, &
+                      
+    !! Print the mg mesh as shared zones
+    do ilvl = nlevel, 1, -1
+      
+      
+    end do
+    ierr = tecend112()
+
+  end subroutine tecio_write
+
 end module Mesh
 
