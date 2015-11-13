@@ -651,8 +651,8 @@ module Mesh
     colourxadj(1) = 1   
     colourxadj( ncolour + 2 ) = nface + 1
     deallocate( dummylr, dummynode, colour )
-    write(*,*) "Total colours = ", ncolour
-    write(*,*) "Colour Xadj = ", colourxadj
+    !write(*,*) "Total colours = ", ncolour
+    !write(*,*) "Colour Xadj = ", colourxadj
 !!!!
   end subroutine colour_pm_faces
 

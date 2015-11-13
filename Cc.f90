@@ -3,7 +3,7 @@ program Cc
   use Mesh
   use mpi
   implicit none
-  integer, parameter :: nlevel = 2
+  integer, parameter :: nlevel = 3
   integer :: ipar = enable_parallel_ + 1, ierr, rank = 0, ilvl
   type(polyMesh), dimension(nlevel) :: pm
 
