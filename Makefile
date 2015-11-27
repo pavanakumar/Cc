@@ -56,10 +56,10 @@ TECIO_OBJECTS=$(patsubst %.cpp, %.o, $(TECIO_SOURCE))
 all: Cc.x
 
 Cc.x: $(OBJECTS) $(MG_OBJECTS) $(TECIO_OBJECTS)
-	$(FC) -g $(OF_LDFLAGS) $(OBJECTS) $(MG_OBJECTS) $(TECIO_OBJECTS) -o Cc.x $(OF_LIBS) -lm
+	$(FC) -fPIC -g $(OF_LDFLAGS) $(OBJECTS) $(MG_OBJECTS) $(TECIO_OBJECTS) -o Cc.x $(OF_LIBS) -lm
 
 %.o: %.f90
-	$(FC) -g -fbounds-check -c -o $@ $<
+	$(FC) -g -fPIC -fbounds-check -c -o $@ $<
 
 %.o: %.c
 	$(CC) -g -I./mg -fPIC -c -o $@ $<
