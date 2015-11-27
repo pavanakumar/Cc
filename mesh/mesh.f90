@@ -29,7 +29,7 @@ module Mesh
     integer :: nnode = 0, nface = 0, ninternalface = 0, &
                ncell = 0, npatch = 0, ilevel = 0, nlevel = 0
     !!! Connecivity/Topology
-    integer, dimension(:,:), allocatable :: facelr
+    integer, dimension(:,:), allocatable :: facelr, cellface
     integer, dimension(:,:), allocatable :: facenode
     integer, dimension(:,:), pointer     :: patchdata
     !!! Metrics
@@ -145,6 +145,7 @@ module Mesh
     call get_pm_patches( pm(nlevel)%npatch, pm(nlevel)%patchdata )
     !!! Calculate the metrics
     call mesh_metrics( pm(nlevel) )
+    call cellface_pm( pm(nlevel) )  !! For LU-SGS
     call close_of_mesh()
   end subroutine reader_of
 
@@ -244,6 +245,8 @@ module Mesh
     nullify(pmc%facegid)
     nullify(pmc%nodegid)
     deallocate(tmplr)
+    !! Construct the cell-face connectivity (LU-SGS)
+    call cellface_pm(pmc)
 
   end subroutine build_pm_coarse
 
@@ -604,8 +607,9 @@ module Mesh
     ncolour = maxval(colour)
     !! Check if everything went well
     if( minval(colour) .eq. 0 ) then
-      write(*,*) "Error: in colour module setting ncolour to zero"
-      ncolour = 0
+      write(*,*) "Error: in colour module setting ncolour to one and assign one colour to all faces"
+      ncolour = 1
+      colour  = 1
     end if
 
   end subroutine face_colouring
@@ -655,6 +659,21 @@ module Mesh
     !write(*,*) "Colour Xadj = ", colourxadj
 !!!!
   end subroutine colour_pm_faces
+
+  subroutine colour_pm_cells( nface, ninternalface, &
+                              facelr, facenode )
+    implicit none
+    integer, intent(in)    :: nface, ninternalface
+    integer, intent(inout) :: facelr(lr_, nface), &
+                              facenode(quadp1_, nface)
+
+  end subroutine colour_pm_cells
+
+  subroutine cellface_pm(pm)
+    implicit none
+    type(polyMesh), intent(inout) :: pm 
+    
+  end subroutine cellface_pm
 
   subroutine tecio_write( rank, nlevel, pm )
     implicit none
