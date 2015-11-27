@@ -78,6 +78,27 @@ module Wrap
 
     end subroutine sfc_perm
 
+    subroutine get_cellgid( ncell, cellgid ) bind(C)
+      use iso_c_binding
+      implicit none
+      integer(kind=c_int) :: ncell, cellgid(*)
+
+    end subroutine get_cellgid
+
+    subroutine get_nodegid( nnode, nodegid ) bind(C)
+      use iso_c_binding
+      implicit none
+      integer(kind=c_int) :: nnode, nodegid(*)
+
+    end subroutine get_nodegid
+
+    subroutine get_facegid( nface, facegid ) bind(C)
+      use iso_c_binding
+      implicit none
+      integer(kind=c_int) :: nface, facegid(*)
+
+    end subroutine get_facegid
+
   end interface  
 
 end module Wrap

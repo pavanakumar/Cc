@@ -147,6 +147,12 @@ module Mesh
                        pm(nlevel)%facelr, pm(nlevel)%facenode )
     !!! Boundary condition data
     call get_pm_patches( pm(nlevel)%npatch, pm(nlevel)%patchdata )
+    !!! Parallel data
+    if( ipar .eq. enable_parallel_ ) then
+      call get_cellgid( pm(nlevel)%ncell, pm(nlevel)%cellgid )
+      call get_nodegid( pm(nlevel)%nnode, pm(nlevel)%nodegid )
+      call get_facegid( pm(nlevel)%nface, pm(nlevel)%facegid )
+    end if
     !!! Close the interface
     call close_of_mesh()
 
@@ -185,6 +191,9 @@ module Mesh
     call inplace_perm( 3, pm%nnode, pm%x, perm )
     call renumber_face_node( pm%nnode, pm%nface, &
                              iperm, pm%facenode )
+    if( pm%parallel .eqv. .true. ) then
+      call inplace_perm_int( 1, pm%nnode, pm%nodegid, perm )
+    end if
 !!!!!!!!!!!!!! Cell ordering and colouring !!!!!!!!!!!!!!!!!!
     perm = 0; iperm = 0
     call sfc_perm( pm%ncell, pm%cc, pm%xmin, &
@@ -194,6 +203,9 @@ module Mesh
     call renumber_lr( pm%nface, pm%ninternalface, &
                       pm%ncell, iperm, &
                       pm%facelr, pm%facenode )
+    if( pm%parallel .eqv. .true. ) then
+      call inplace_perm_int( 1, pm%ncell, pm%cellgid, perm )
+    end if
 !!!!!!!!!!!!!! Face order and colouring !!!!!!!!!!!!!!!!
 !    call colour_pm_faces( pm%nface, pm%ninternalface, &
 !                          pm%ncell, pm%facelr, &
@@ -918,6 +930,31 @@ module Mesh
       end if   
     end do   
   end subroutine inplace_perm
+
+  subroutine inplace_perm_int( m, n, x, myperm )
+    implicit none
+    integer, intent(in) :: m, n, myperm(n)
+    integer, intent(inout) :: x(m, n)
+    !! Local
+    integer :: i, j, k, perm(n)
+    integer :: temp(m)
+    !! Store permutation array
+    perm = myperm
+    do i = 1, n
+      if( i .ne. perm(i) ) then 
+        temp(1:m) = x(1:m, i)
+        j = i
+        do while( i .ne. perm(j) )
+          k = perm(j)
+          x(:, j) = x(:, k)
+          perm(j) = j
+          j = k
+        end do 
+        x(1:m, j) = temp(1:m)
+        perm(j) = j
+      end if   
+    end do   
+  end subroutine inplace_perm_int
 
 end module Mesh
 

@@ -169,4 +169,24 @@ void check_metrics
   }
 }
 
+/************************************************************
+   Get the cell gids from OpenFOAM parallel mesh
+*************************************************************/
+void get_cellgid( int *ncell, int *cellgid ) {
+
+}
+
+/************************************************************
+   Get the node gids from OpenFOAM parallel mesh
+*************************************************************/
+void get_nodegid( int *nnode, int *nodegid ) {
+
+}
+
+/************************************************************
+   Get the face gids from OpenFOAM parallel mesh
+*************************************************************/
+void get_facegid( int *nface, int *facegid ) {
+
+}
 

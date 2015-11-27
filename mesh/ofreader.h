@@ -30,6 +30,9 @@ extern "C" {
   void get_pm_faces( int *nface, int *ninternalface, int *facelr, int *facenodes );
   void get_pm_patches( int *npatch, int *patchdata );
   void check_metrics( int *ncell, int *nface, double *cv, double *cc, double *fc, double *fs, double *dn );
+  void get_cellgid( int *ncell, int *cellgid );
+  void get_nodegid( int *nnode, int *nodegid );
+  void get_facegid( int *nface, int *facegid );
 };
 
 /**************************************
