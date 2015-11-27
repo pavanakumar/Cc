@@ -117,7 +117,7 @@ module Mesh
     call reader_of( nlevel, pm, ipar )
     call permute_pm( pm(nlevel) )
     call colour_pm( pm(nlevel) )
-!    call create_mg_levels( nlevel, pm, ipar )
+    call create_mg_levels( nlevel, pm, ipar )
 
   end subroutine create_mg_pm
 
@@ -305,10 +305,11 @@ module Mesh
                          pm(ilvl)%mgpart )
 !      call fix_mg_degeneracy( pm(ilvl) )
       call build_pm_coarse( pm(ilvl), pm(ilvl - 1), gr )
-      call colour_pm_faces( pm(ilvl - 1)%nface, pm(ilvl - 1)%ninternalface, &
-                            pm(ilvl - 1)%ncell, pm(ilvl - 1)%facelr, &
-                            pm(ilvl - 1)%facenode, pm(ilvl - 1)%nfcolour, &
-                            pm(ilvl -1)%fcolourxadj )
+      call colour_pm( pm(ilvl - 1) )
+!      call colour_pm_faces( pm(ilvl - 1)%nface, pm(ilvl - 1)%ninternalface, &
+!                            pm(ilvl - 1)%ncell, pm(ilvl - 1)%facelr, &
+!                            pm(ilvl - 1)%facenode, pm(ilvl - 1)%nfcolour, &
+!                            pm(ilvl -1)%fcolourxadj )
       call mesh_metrics( pm(ilvl - 1) ) 
       !> Check the multigrid volumes      
       sum_fine   = sum(pm(ilvl)%cv)
