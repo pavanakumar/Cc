@@ -221,14 +221,18 @@ module Mesh
     type(polyMesh), intent(inout) :: pm
     !> Local vars
     integer :: i
-    integer, allocatable :: perm(:), iperm(:)
+    integer, allocatable :: perm(:), iperm(:), ccolour(:)
 
-    !> Face order and colouring
+    !> Cell colouring
+    allocate(ccolour(pm%ncell))
+    call cell_colouring( pm%ninternalface, pm%ncell, &
+                         pm%facelr, pm%nccolour, ccolour)
+    !> Face colouring
     call colour_pm_faces( pm%nface, pm%ninternalface, &
                           pm%ncell, pm%facelr, &
                           pm%facenode, pm%nfcolour, &
                           pm%fcolourxadj )
-
+    deallocate(ccolour)
   end subroutine colour_pm
 
   !>
@@ -811,13 +815,64 @@ module Mesh
   end subroutine colour_pm_cells
 
   !>
-  subroutine cell_colouring(ninternalface, ncell, facelr, nfcolour, fcolour)
+  subroutine cell_colouring(ninternalface, ncell, facelr, nccolour, ccolour)
     implicit none
     integer, intent(in)    :: ninternalface, ncell
-    integer, intent(inout) :: facelr(lr_, ninternalface), fcolour(ninternalface)
-    integer, intent(out)   :: nfcolour
+    integer, intent(inout) :: facelr(lr_, ninternalface)
+    integer, intent(out)   :: nccolour, ccolour(ncell)
     !> Local
+    integer :: icell, icellngbr, ngbr, i, mycolour
+    integer,dimension(lr_ * ninternalface) :: adjncy
+    integer,dimension(ncell + 1) :: xadj
+    logical :: free
 
+    !> Form the cell xadj and adjncy
+    call cell_xadj_adjncy(ninternalface, ncell, facelr, xadj, adjncy)
+    !> Init colours to zero
+    ccolour = 0
+    !> Loop over all cells
+    do icell = 1, ncell
+      !> Loop over each cell neighbours
+      do icellngbr = xadj(icell), xadj(icell) - 1
+        !> go through the colors and check if we can still assign them to this cell
+        mycolour = 1
+        ngbr = adjncy(icellngbr)
+        do
+          !> start assuming that we can use this color
+          free = .true.
+          !> check if the color is already taken by any other cell connected to ngbr
+          do i = xadj(ngbr), xadj(ngbr + 1) - 1
+            if(mycolour .eq. ccolour( adjncy(i) ) ) then
+              free = .false.
+            end if
+          end do
+          !> if the color wasn't used by any other cell, we can still assign it.
+          !> exit here and don't change c any further
+          if(free) then
+            exit
+          !> if it isn't free any more, we try the next color. Go back
+          !> and do another cycle.
+          else
+            mycolour = mycolour + 1
+            cycle
+          end if
+        end do
+      end do
+      !> if the loop terminated, it found a free color and stored it in mycolour. We assign
+      !> this color to i^{th} cell now.
+      ccolour(icell) = mycolour
+    end do
+    !> Total number of colours
+    nccolour = maxval(ccolour)
+    !> Check if everything went well
+    if( minval(ccolour) .eq. 0 ) then
+      do i = 1, ncell
+        write(*,*) ccolour(i)
+      end do
+      write(*,*) "Error: in ccolour module setting nccolour to one and assign one ccolour to all cells"
+      nccolour = 1
+      ccolour  = 1
+    end if
 
   end subroutine cell_colouring
 
