@@ -248,6 +248,7 @@ module Mesh
 
   end subroutine renumber_face_node
 
+  !>
   subroutine renumber_lr( nface, ninternalface, ncell, iperm, facelr, facenode )
     implicit none
     integer, intent(in)    :: nface, ninternalface, ncell, iperm(ncell)
@@ -300,10 +301,13 @@ module Mesh
     !> Multi-grid mgridgen
     do ilvl = nlevel, 2, -1
       call pm_to_graph( pm(ilvl), gr )
-      call MGridGen_f90( gr%nvtx, gr%xadj, gr%vvol, gr%vsurf, gr%adjncy, &
-                         gr%adjwgt, minsize, maxsize, options, nmoves, gr%npart, &
-                         pm(ilvl)%mgpart )
-!      call fix_mg_degeneracy( pm(ilvl) )
+      call MGridGen_f90 &
+      ( &
+        gr%nvtx, gr%xadj, gr%vvol, gr%vsurf, gr%adjncy, &
+        gr%adjwgt, minsize, maxsize, options, nmoves, &
+        gr%npart, pm(ilvl)%mgpart &
+      )
+      !! call fix_mg_degeneracy( pm(ilvl) )
       call build_pm_coarse( pm(ilvl), pm(ilvl - 1), gr )
       call colour_pm( pm(ilvl - 1) )
       call mesh_metrics( pm(ilvl - 1) ) 
@@ -317,6 +321,7 @@ module Mesh
 
   end subroutine create_mg_levels
 
+  !>
   subroutine build_pm_coarse( pmf, pmc, gr )
     implicit none
     type(polyMesh) :: pmf, pmc
@@ -401,6 +406,7 @@ module Mesh
 
   end subroutine mesh_metrics 
 
+  !>
   subroutine allocate_pm( pm )
     implicit none
     type(polyMesh), intent(inout) :: pm
@@ -430,6 +436,7 @@ module Mesh
 
   end subroutine allocate_pm
 
+  !>
   subroutine mesh_metrics_tapenade( &
     nnode, nface, ninternalface, ncell, &
     x, facelr, facenode, cv, cc, dn, fs, fc )
@@ -500,6 +507,7 @@ module Mesh
 
   end subroutine mesh_metrics_tapenade
 
+  !>
   subroutine mesh_metrics_tapenade_omp( &
     nnode, nface, ninternalface, ncell, &
     nfcolour, fcolourxadj, x, facelr, facenode, &
@@ -585,10 +593,10 @@ module Mesh
     !> Local subroutine variables
     integer :: ierr, i
     !> Some simple memory checks
-    if( allocated(gr%xadj) .eqv. .true.   ) deallocate(gr%xadj)
+    if( allocated(gr%xadj)   .eqv. .true. ) deallocate(gr%xadj)
     if( allocated(gr%adjncy) .eqv. .true. ) deallocate(gr%adjncy)
     if( allocated(gr%adjwgt) .eqv. .true. ) deallocate(gr%adjwgt)
-    if( allocated(gr%vsurf) .eqv. .true.  ) deallocate(gr%vsurf)
+    if( allocated(gr%vsurf)  .eqv. .true. ) deallocate(gr%vsurf)
     !> Allocations
     gr%nvtx = pm%ncell
     allocate( gr%xadj(gr%nvtx + 1), &
@@ -641,6 +649,7 @@ module Mesh
 
   end subroutine pm_to_graph
 
+  !>
   subroutine cell_face_xadj_adjncy(ninternalface, ncell, facelr, xadj, adjncy)
     implicit none
     integer, intent(in)  :: ninternalface, ncell
@@ -681,6 +690,7 @@ module Mesh
     
   end subroutine cell_face_xadj_adjncy
 
+  !>
   subroutine cell_xadj_adjncy(ninternalface, ncell, facelr, xadj, adjncy)
     implicit none
     integer, intent(in)  :: ninternalface, ncell
@@ -721,6 +731,7 @@ module Mesh
  
   end subroutine cell_xadj_adjncy
 
+  !>
   subroutine cell_perm_xadj_adjncy(ninternalface, ncell, facelr, perm, iperm, xadj, adjncy)
     implicit none
     integer, intent(in)  :: ninternalface, ncell
@@ -762,6 +773,7 @@ module Mesh
  
   end subroutine cell_perm_xadj_adjncy
 
+  !>
   subroutine face_colouring(ninternalface, ncell, facelr, nfcolour, fcolour)
     implicit none
     integer, intent(in)    :: ninternalface, ncell
@@ -824,6 +836,7 @@ module Mesh
 
   end subroutine face_colouring
 
+  !>
   subroutine colour_pm_faces( nface, ninternalface, ncell, facelr, &
                               facenode, nfcolour, fcolourxadj )
     implicit none 
@@ -870,6 +883,7 @@ module Mesh
 
   end subroutine colour_pm_faces
 
+  !>
   subroutine colour_pm_cells( nface, ninternalface, &
                               facelr, facenode )
     implicit none
@@ -879,12 +893,14 @@ module Mesh
     
   end subroutine colour_pm_cells
 
+  !>
   subroutine cellface_pm(pm)
     implicit none
     type(polyMesh), intent(inout) :: pm 
     
   end subroutine cellface_pm
 
+  !>
   subroutine tecio_write( rank, nlevel, pm )
     implicit none
     integer :: rank, nlevel
@@ -919,6 +935,7 @@ module Mesh
 
   end subroutine tecio_write
 
+  !>
   subroutine inplace_perm_real( m, n, x, myperm )
     implicit none
     integer, intent(in) :: m, n, myperm(n)
@@ -944,6 +961,7 @@ module Mesh
     end do   
   end subroutine inplace_perm_real
 
+  !>
   subroutine inplace_perm_int( m, n, x, myperm )
     implicit none
     integer, intent(in) :: m, n, myperm(n)
