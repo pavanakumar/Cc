@@ -80,7 +80,8 @@ distclean: clean
 	-@rm -f Cc
 	-@rm -f Cc.x
 	-@rm -rf mesh/Make mesh/lnInclude
-	-@rm -f libCc_ofreader*
+	-@rm -rf libCc_ofreader*
+	-@rm -rf Cc.x.*
 	-@rm -f ./mesh/*.dep
 	-@rm -rf ./lua
 	cd luaposix && $(MAKE) distclean
