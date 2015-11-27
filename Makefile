@@ -24,7 +24,8 @@ MG_SOURCE= ./mg/aratio.c \
 	./mg/refine.c \
 	./mg/setup.c \
 	./mg/sort.c \
-	./mg/util.c
+	./mg/util.c \
+        ./mg/sfc.c
 
 TECIO_SOURCE= ./tecio/TranslatedString.cpp \
   ./tecio/alloc.cpp            \
