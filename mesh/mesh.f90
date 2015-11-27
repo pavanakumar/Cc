@@ -191,8 +191,9 @@ module Mesh
                    pm%xmax, perm, iperm )
     call inplace_perm( 3, pm%ncell, pm%cc, perm )
     call inplace_perm( 1, pm%ncell, pm%cv, perm )
-!    call renumber_lr( pm%nface, pm%ncell, iperm, &
-!                      pm%facelr, pm%facenode )
+    call renumber_lr( pm%nface, pm%ninternalface, &
+                      pm%ncell, iperm, &
+                      pm%facelr, pm%facenode )
 !!!!!!!!!!!!!! Face order and colouring !!!!!!!!!!!!!!!!
 !    call colour_pm_faces( pm%nface, pm%ninternalface, &
 !                          pm%ncell, pm%facelr, &
@@ -217,16 +218,16 @@ module Mesh
 
   end subroutine renumber_face_node
 
-  subroutine renumber_lr( nface, ncell, iperm, facelr, facenode )
+  subroutine renumber_lr( nface, ninternalface, ncell, iperm, facelr, facenode )
     implicit none
-    integer, intent(in)    :: nface, ncell, iperm(ncell)
+    integer, intent(in)    :: nface, ninternalface, ncell, iperm(ncell)
     integer, intent(inout) :: facelr(lr_, nface), facenode(quadp1_, nface)
     !> Local
     integer :: iface, itemp
     integer, parameter :: irev(4) = (/ 5, 4, 3, 2 /)
     
     !! Perform the face-cell re-numbering
-    do iface = 1, nface
+    do iface = 1, ninternalface
       facelr(lcell_, iface) = iperm(facelr(lcell_, iface))
       facelr(rcell_, iface) = iperm(facelr(rcell_, iface))
       !! Ensure that owner cell index is less than neighbour cell index
@@ -246,7 +247,11 @@ module Mesh
         end if !! Reverse face node
       end if !! Face left/right
     end do
-    
+    !! Boundary faces no need to order facenode
+    do iface = ninternalface + 1, nface
+      facelr(lcell_, iface) = iperm( facelr(lcell_, iface) )
+    end do
+
   end subroutine renumber_lr
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
