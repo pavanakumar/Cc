@@ -193,7 +193,7 @@ module Mesh
     perm = 0; iperm = 0
     call sfc_perm( pm%nnode, pm%x, pm%xmin, &
                    pm%xmax, perm, iperm )
-    call inplace_perm( 3, pm%nnode, pm%x, perm )
+    call inplace_perm_real( 3, pm%nnode, pm%x, perm )
     call renumber_face_node( pm%nnode, pm%nface, &
                              iperm, pm%facenode )
     if( pm%parallel .eqv. .true. ) then
@@ -203,8 +203,8 @@ module Mesh
     perm = 0; iperm = 0
     call sfc_perm( pm%ncell, pm%cc, pm%xmin, &
                    pm%xmax, perm, iperm )
-    call inplace_perm( 3, pm%ncell, pm%cc, perm )
-    call inplace_perm( 1, pm%ncell, pm%cv, perm )
+    call inplace_perm_real( 3, pm%ncell, pm%cc, perm )
+    call inplace_perm_real( 1, pm%ncell, pm%cv, perm )
     call renumber_lr( pm%nface, pm%ninternalface, &
                       pm%ncell, iperm, &
                       pm%facelr, pm%facenode )
@@ -306,10 +306,6 @@ module Mesh
 !      call fix_mg_degeneracy( pm(ilvl) )
       call build_pm_coarse( pm(ilvl), pm(ilvl - 1), gr )
       call colour_pm( pm(ilvl - 1) )
-!      call colour_pm_faces( pm(ilvl - 1)%nface, pm(ilvl - 1)%ninternalface, &
-!                            pm(ilvl - 1)%ncell, pm(ilvl - 1)%facelr, &
-!                            pm(ilvl - 1)%facenode, pm(ilvl - 1)%nfcolour, &
-!                            pm(ilvl -1)%fcolourxadj )
       call mesh_metrics( pm(ilvl - 1) ) 
       !> Check the multigrid volumes      
       sum_fine   = sum(pm(ilvl)%cv)
@@ -923,7 +919,7 @@ module Mesh
 
   end subroutine tecio_write
 
-  subroutine inplace_perm( m, n, x, myperm )
+  subroutine inplace_perm_real( m, n, x, myperm )
     implicit none
     integer, intent(in) :: m, n, myperm(n)
     real(kind=8), intent(inout) :: x(m, n)
@@ -946,7 +942,7 @@ module Mesh
         perm(j) = j
       end if   
     end do   
-  end subroutine inplace_perm
+  end subroutine inplace_perm_real
 
   subroutine inplace_perm_int( m, n, x, myperm )
     implicit none
