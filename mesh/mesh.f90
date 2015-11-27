@@ -650,86 +650,51 @@ module Mesh
   end subroutine pm_to_graph
 
   !>
-  subroutine cell_face_xadj_adjncy(ninternalface, ncell, facelr, xadj, adjncy)
-    implicit none
-    integer, intent(in)  :: ninternalface, ncell
-    integer, intent(in)  :: facelr(lr_, ninternalface)
-    integer, intent(out) :: xadj(ncell + 1), &
-                            adjncy(lr_ * ninternalface)
-    !>
-    integer, dimension(ncell) :: counter
-    integer :: iface, lcell, rcell, icell
-
-    !> first sweep: count how many faces are connected to each cell
-    counter = 0
+  subroutine colour_pm_faces( nface, ninternalface, ncell, facelr, &
+                              facenode, nfcolour, fcolourxadj )
+    implicit none 
+    integer, intent(in) :: nface, ninternalface, ncell
+    integer, intent(inout) :: facelr(lr_, nface), &
+                              facenode(quadp1_, nface)
+    integer, intent(out) :: nfcolour
+    integer, intent(out), allocatable :: fcolourxadj(:)
+    !> Local vars
+    integer :: iface, icolour
+    integer, allocatable :: fcolour(:), dummylr(:,:), &
+                            dummynode(:,:)
+    !> Colouring of faces
+    allocate(dummylr(lr_, ninternalface), &
+             dummynode(quadp1_, ninternalface), &
+             fcolour(ninternalface))
+    !> Copy all internal faces to dummy arrays to calculate colouring
+    dummylr(:, 1:ninternalface) = facelr(:, 1:ninternalface)
+    dummynode(:, 1:ninternalface) = facenode(:, 1:ninternalface)
+    call face_colouring( ninternalface, ncell, dummylr, nfcolour, fcolour )
+    !> Construct colour xadj array
+    allocate(fcolourxadj(nfcolour + 2))
+    fcolourxadj = 0
     do iface = 1, ninternalface
-      lcell = facelr(lcell_, iface)
-      rcell = facelr(rcell_, iface)
-      counter(lcell) = counter(lcell) + 1
-      counter(rcell) = counter(rcell) + 1
+      fcolourxadj(fcolour(iface) + 1) = fcolourxadj(fcolour(iface) + 1) + 1
     end do
-
-    !> use the counter to initialise xadj
-    xadj(1) = 1
-    do icell = 1, ncell
-      xadj(icell + 1) = xadj(icell) + counter(icell)
+    fcolourxadj(1) = 1
+    do icolour = 1, nfcolour
+      fcolourxadj(icolour + 1) = fcolourxadj(icolour) + fcolourxadj(icolour + 1)
     end do
-    !> reset the counter, we use it again
-    counter = 0
-
-    !> fill the adjncy array. For each cell, we fill
-    !> the section that starts at the position marked by xadj
+    !> Order faces by colour
     do iface = 1, ninternalface
-      lcell = facelr(lcell_, iface)
-      rcell = facelr(rcell_, iface)
-      adjncy(xadj(lcell) + counter(lcell)) = iface
-      adjncy(xadj(rcell) + counter(rcell)) = iface
-      counter(lcell) = counter(lcell) + 1
-      counter(rcell) = counter(rcell) + 1
+      icolour = fcolour(iface)
+      facelr(:, fcolourxadj(icolour))   = dummylr(:, iface)
+      facenode(:, fcolourxadj(icolour)) = dummynode(:, iface)
+      fcolourxadj(icolour) = fcolourxadj(icolour) + 1
     end do
-    
-  end subroutine cell_face_xadj_adjncy
+    fcolourxadj = cshift(fcolourxadj, nfcolour + 1)
+    fcolourxadj(1) = 1   
+    fcolourxadj( nfcolour + 2 ) = nface + 1
+    deallocate( dummylr, dummynode, fcolour )
+    !write(*,*) "Total fcolours = ", nfcolour
+    !write(*,*) "Colour Xadj = ", fcolourxadj
 
-  !>
-  subroutine cell_xadj_adjncy(ninternalface, ncell, facelr, xadj, adjncy)
-    implicit none
-    integer, intent(in)  :: ninternalface, ncell
-    integer, intent(in)  :: facelr(lr_, ninternalface)
-    integer, intent(out) :: xadj(ncell + 1), &
-                            adjncy(lr_ * ninternalface)
-    !>
-    integer, dimension(ncell) :: counter
-    integer :: iface, lcell, rcell, icell
-
-    !> first sweep: count how many faces are connected to each cell
-    counter = 0
-    do iface = 1, ninternalface
-      lcell = facelr(lcell_, iface)
-      rcell = facelr(rcell_, iface)
-      counter(lcell) = counter(lcell) + 1
-      counter(rcell) = counter(rcell) + 1
-    end do
-
-    !> use the counter to initialise xadj
-    xadj(1) = 1
-    do icell = 1, ncell
-      xadj(icell + 1) = xadj(icell) + counter(icell)
-    end do
-    !> reset the counter, we use it again
-    counter = 0
-
-    !> fill the adjncy array. For each cell, we fill
-    !> the section that starts at the position marked by xadj
-    do iface = 1, ninternalface
-      lcell = facelr(lcell_, iface)
-      rcell = facelr(rcell_, iface)
-      adjncy(xadj(lcell) + counter(lcell)) = rcell
-      adjncy(xadj(rcell) + counter(rcell)) = lcell
-      counter(lcell) = counter(lcell) + 1
-      counter(rcell) = counter(rcell) + 1
-    end do
- 
-  end subroutine cell_xadj_adjncy
+  end subroutine colour_pm_faces
 
   !>
   subroutine face_colouring(ninternalface, ncell, facelr, nfcolour, fcolour)
@@ -795,51 +760,45 @@ module Mesh
   end subroutine face_colouring
 
   !>
-  subroutine colour_pm_faces( nface, ninternalface, ncell, facelr, &
-                              facenode, nfcolour, fcolourxadj )
-    implicit none 
-    integer, intent(in) :: nface, ninternalface, ncell
-    integer, intent(inout) :: facelr(lr_, nface), &
-                              facenode(quadp1_, nface)
-    integer, intent(out) :: nfcolour
-    integer, intent(out), allocatable :: fcolourxadj(:)
-    !> Local vars
-    integer :: iface, icolour
-    integer, allocatable :: fcolour(:), dummylr(:,:), &
-                            dummynode(:,:)
-    !> Colouring of faces
-    allocate(dummylr(lr_, ninternalface), &
-             dummynode(quadp1_, ninternalface), &
-             fcolour(ninternalface))
-    !> Copy all internal faces to dummy arrays to calculate colouring
-    dummylr(:, 1:ninternalface) = facelr(:, 1:ninternalface)
-    dummynode(:, 1:ninternalface) = facenode(:, 1:ninternalface)
-    call face_colouring( ninternalface, ncell, dummylr, nfcolour, fcolour )
-    !> Construct colour xadj array
-    allocate(fcolourxadj(nfcolour + 2))
-    fcolourxadj = 0
-    do iface = 1, ninternalface
-      fcolourxadj(fcolour(iface) + 1) = fcolourxadj(fcolour(iface) + 1) + 1
-    end do
-    fcolourxadj(1) = 1
-    do icolour = 1, nfcolour
-      fcolourxadj(icolour + 1) = fcolourxadj(icolour) + fcolourxadj(icolour + 1)
-    end do
-    !> Order faces by colour
-    do iface = 1, ninternalface
-      icolour = fcolour(iface)
-      facelr(:, fcolourxadj(icolour))   = dummylr(:, iface)
-      facenode(:, fcolourxadj(icolour)) = dummynode(:, iface)
-      fcolourxadj(icolour) = fcolourxadj(icolour) + 1
-    end do
-    fcolourxadj = cshift(fcolourxadj, nfcolour + 1)
-    fcolourxadj(1) = 1   
-    fcolourxadj( nfcolour + 2 ) = nface + 1
-    deallocate( dummylr, dummynode, fcolour )
-    !write(*,*) "Total fcolours = ", nfcolour
-    !write(*,*) "Colour Xadj = ", fcolourxadj
+  subroutine cell_face_xadj_adjncy(ninternalface, ncell, facelr, xadj, adjncy)
+    implicit none
+    integer, intent(in)  :: ninternalface, ncell
+    integer, intent(in)  :: facelr(lr_, ninternalface)
+    integer, intent(out) :: xadj(ncell + 1), &
+                            adjncy(lr_ * ninternalface)
+    !>
+    integer, dimension(ncell) :: counter
+    integer :: iface, lcell, rcell, icell
 
-  end subroutine colour_pm_faces
+    !> first sweep: count how many faces are connected to each cell
+    counter = 0
+    do iface = 1, ninternalface
+      lcell = facelr(lcell_, iface)
+      rcell = facelr(rcell_, iface)
+      counter(lcell) = counter(lcell) + 1
+      counter(rcell) = counter(rcell) + 1
+    end do
+
+    !> use the counter to initialise xadj
+    xadj(1) = 1
+    do icell = 1, ncell
+      xadj(icell + 1) = xadj(icell) + counter(icell)
+    end do
+    !> reset the counter, we use it again
+    counter = 0
+
+    !> fill the adjncy array. For each cell, we fill
+    !> the section that starts at the position marked by xadj
+    do iface = 1, ninternalface
+      lcell = facelr(lcell_, iface)
+      rcell = facelr(rcell_, iface)
+      adjncy(xadj(lcell) + counter(lcell)) = iface
+      adjncy(xadj(rcell) + counter(rcell)) = iface
+      counter(lcell) = counter(lcell) + 1
+      counter(rcell) = counter(rcell) + 1
+    end do
+    
+  end subroutine cell_face_xadj_adjncy
 
   !>
   subroutine colour_pm_cells( nface, ninternalface, &
@@ -850,6 +809,58 @@ module Mesh
                               facenode(quadp1_, nface)
     
   end subroutine colour_pm_cells
+
+  !>
+  subroutine cell_colouring(ninternalface, ncell, facelr, nfcolour, fcolour)
+    implicit none
+    integer, intent(in)    :: ninternalface, ncell
+    integer, intent(inout) :: facelr(lr_, ninternalface), fcolour(ninternalface)
+    integer, intent(out)   :: nfcolour
+    !> Local
+
+
+  end subroutine cell_colouring
+
+ !>
+  subroutine cell_xadj_adjncy(ninternalface, ncell, facelr, xadj, adjncy)
+    implicit none
+    integer, intent(in)  :: ninternalface, ncell
+    integer, intent(in)  :: facelr(lr_, ninternalface)
+    integer, intent(out) :: xadj(ncell + 1), &
+                            adjncy(lr_ * ninternalface)
+    !>
+    integer, dimension(ncell) :: counter
+    integer :: iface, lcell, rcell, icell
+
+    !> first sweep: count how many faces are connected to each cell
+    counter = 0
+    do iface = 1, ninternalface
+      lcell = facelr(lcell_, iface)
+      rcell = facelr(rcell_, iface)
+      counter(lcell) = counter(lcell) + 1
+      counter(rcell) = counter(rcell) + 1
+    end do
+
+    !> use the counter to initialise xadj
+    xadj(1) = 1
+    do icell = 1, ncell
+      xadj(icell + 1) = xadj(icell) + counter(icell)
+    end do
+    !> reset the counter, we use it again
+    counter = 0
+
+    !> fill the adjncy array. For each cell, we fill
+    !> the section that starts at the position marked by xadj
+    do iface = 1, ninternalface
+      lcell = facelr(lcell_, iface)
+      rcell = facelr(rcell_, iface)
+      adjncy(xadj(lcell) + counter(lcell)) = rcell
+      adjncy(xadj(rcell) + counter(rcell)) = lcell
+      counter(lcell) = counter(lcell) + 1
+      counter(rcell) = counter(rcell) + 1
+    end do
+ 
+  end subroutine cell_xadj_adjncy
 
   !>
   subroutine cellface_pm(pm)
