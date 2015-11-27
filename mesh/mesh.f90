@@ -732,48 +732,6 @@ module Mesh
   end subroutine cell_xadj_adjncy
 
   !>
-  subroutine cell_perm_xadj_adjncy(ninternalface, ncell, facelr, perm, iperm, xadj, adjncy)
-    implicit none
-    integer, intent(in)  :: ninternalface, ncell
-    integer, intent(in)  :: facelr(lr_, ninternalface), perm(ncell), iperm(ncell)
-    integer, intent(out) :: xadj(ncell + 1), &
-                            adjncy(lr_ * ninternalface)
-    !>
-    integer, dimension(ncell) :: counter
-    integer :: iface, lcell, rcell, i, icell
-
-    !> first sweep: count how many faces are connected to each cell
-    counter = 0
-    do iface = 1, ninternalface
-      lcell = iperm(facelr(lcell_, iface))
-      rcell = iperm(facelr(rcell_, iface))
-      counter(lcell) = counter(lcell) + 1
-      counter(rcell) = counter(rcell) + 1
-    end do
-
-    !> use the counter to initialise xadj
-    xadj(perm(1)) = 1
-    do i = 1, ncell
-      icell = perm(i)
-      xadj(icell + 1) = xadj(icell) + counter(icell)
-    end do
-    !> reset the counter, we use it again
-    counter = 0
-
-    !> fill the adjncy array. For each cell, we fill
-    !> the section that starts at the position marked by xadj
-    do iface = 1, ninternalface
-      lcell = iperm(facelr(lcell_, iface))
-      rcell = iperm(facelr(rcell_, iface))
-      adjncy(xadj(lcell) + counter(lcell)) = rcell
-      adjncy(xadj(rcell) + counter(rcell)) = lcell
-      counter(lcell) = counter(lcell) + 1
-      counter(rcell) = counter(rcell) + 1
-    end do
- 
-  end subroutine cell_perm_xadj_adjncy
-
-  !>
   subroutine face_colouring(ninternalface, ncell, facelr, nfcolour, fcolour)
     implicit none
     integer, intent(in)    :: ninternalface, ncell
