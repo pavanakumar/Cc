@@ -70,6 +70,14 @@ module Wrap
 
     end subroutine write_pm_tecio
 
+    subroutine sfc_perm( n, x, xmin, xmax, perm, iperm ) bind(C)
+      use iso_c_binding
+      implicit none
+      integer(kind=c_int) :: n, perm(n), iperm(n)
+      real(kind=c_double) :: x(3, n), xmin(3), xmax(3)
+
+    end subroutine sfc_perm
+
   end interface  
 
 end module Wrap
