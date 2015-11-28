@@ -66,7 +66,7 @@ module Mesh
     implicit none
     real(kind=8),dimension(dim_),intent(in) :: x, y
     real(kind=8),dimension(dim_)            :: cross_prod
-    integer, dimension(dim_), parameter        :: c1 = (/2,3,1/), &
+    integer, dimension(dim_), parameter     :: c1 = (/2,3,1/), &
                                                c2 = (/3,1,2/)
     cross_prod = x(c1) * y(c2) - y(c1) * x(c2)
 
@@ -130,7 +130,7 @@ module Mesh
     type(polyMesh), intent(inout) :: pm(nlevel)
     !> Local variables
     integer :: ilvl, i
-    !> Make the meshes aware of the multi-grid 
+    !> Make the meshes aware of the multi-grid
     do ilvl = 1, nlevel
       if( ipar .eq. enable_parallel_ ) then
         pm(ilvl)%parallel = .true.
@@ -212,7 +212,7 @@ module Mesh
       call inplace_perm_int( 1, pm%ncell, pm%cellgid, perm )
     end if
 
-  end subroutine permute_pm 
+  end subroutine permute_pm
 
   !>
   subroutine colour_pm( pm )
@@ -315,10 +315,10 @@ module Mesh
       call build_pm_coarse( pm(ilvl), pm(ilvl - 1), gr )
       call colour_pm( pm(ilvl - 1) )
       call mesh_metrics( pm(ilvl - 1) ) 
-      !> Check the multigrid volumes      
+      !> Check the multigrid volumes
       sum_fine   = sum(pm(ilvl)%cv)
       sum_coarse = sum(pm(ilvl - 1)%cv)
-      if( abs( (sum_fine - sum_coarse) / sum_fine ) .gt. 1.0d-10 ) then 
+      if( abs( (sum_fine - sum_coarse) / sum_fine ) .gt. 1.0d-10 ) then
         write(*,*) "Error: In metrics", sum_fine, sum_coarse
       end if
     end do
@@ -408,7 +408,7 @@ module Mesh
              pm%cc, pm%fc, pm%fs, pm%dn )
     end if
 
-  end subroutine mesh_metrics 
+  end subroutine mesh_metrics
 
   !>
   subroutine allocate_pm( pm )
@@ -832,7 +832,7 @@ module Mesh
     ccolour = 0; ccolour(1) = 1
     !> Is a colour available
     avail = .false.
-    ccolour(1) = 1 
+    ccolour(1) = 1
     !> Assign colour to all other cells
     do icell = 2, ncell
       !> Process all adjacent cells and flag their colors
@@ -849,7 +849,7 @@ module Mesh
       !> Assign the first available colour to icell
       ccolour(icell) = mycolour
       !> Reset the values back to false for the next iteration
-      where ( ccolour .ne. 0 ) avail = .false.      
+      where ( ccolour .ne. 0 ) avail = .false.
     end do
 
   end subroutine cell_colouring
@@ -898,8 +898,8 @@ module Mesh
   !>
   subroutine cellface_pm(pm)
     implicit none
-    type(polyMesh), intent(inout) :: pm 
-    
+    type(polyMesh), intent(inout) :: pm
+
   end subroutine cellface_pm
 
   !>
@@ -927,7 +927,7 @@ module Mesh
 !    ierr = teczne112( "Finest", ztype, pm(nlevel)%nnode, &
 !                      pm(nlevel)%ncell, pm(nlevel)%nface, &
 !                      0, 0, 0, stime, sid, pzone, dpack, &
-                      
+
     !! Print the mg mesh as shared zones
     do ilvl = nlevel, 1, -1
       
@@ -948,7 +948,7 @@ module Mesh
     !> Store permutation array
     perm = myperm
     do i = 1, n
-      if( i .ne. perm(i) ) then 
+      if( i .ne. perm(i) ) then
         temp(1:m) = x(1:m, i)
         j = i
         do while( i .ne. perm(j) )
@@ -956,11 +956,11 @@ module Mesh
           x(:, j) = x(:, k)
           perm(j) = j
           j = k
-        end do 
+        end do
         x(1:m, j) = temp(1:m)
         perm(j) = j
-      end if   
-    end do   
+      end if
+    end do
   end subroutine inplace_perm_real
 
   !>
@@ -974,7 +974,7 @@ module Mesh
     !> Store permutation array
     perm = myperm
     do i = 1, n
-      if( i .ne. perm(i) ) then 
+      if( i .ne. perm(i) ) then
         temp(1:m) = x(1:m, i)
         j = i
         do while( i .ne. perm(j) )
@@ -982,12 +982,11 @@ module Mesh
           x(:, j) = x(:, k)
           perm(j) = j
           j = k
-        end do 
+        end do
         x(1:m, j) = temp(1:m)
         perm(j) = j
-      end if   
-    end do   
+      end if
+    end do
   end subroutine inplace_perm_int
 
 end module Mesh
-
