@@ -10,10 +10,14 @@ module Wrap
       integer(kind=c_int) :: ipar
     end subroutine init_of_mesh
 
-    subroutine get_pm_sizes( nnode, nface, ninternalface, ncell, npatch ) bind(C)
+    subroutine get_pm_sizes( nnode, nface, ninternalface, &
+                             nedge, ninternaledge, &
+                             ncell, npatch ) bind(C)
       use iso_c_binding
       implicit none
-      integer(kind=c_int) :: nnode, nface, ninternalface, ncell, npatch
+      integer(kind=c_int) :: nnode, nface, ninternalface, &
+                             nedge, ninternaledge, &
+                             ncell, npatch
     end subroutine get_pm_sizes
 
     subroutine get_pm_nodes( nnode, x ) bind(C)
@@ -29,6 +33,13 @@ module Wrap
       integer(kind=c_int) :: nface, ninternalface
       integer(kind=c_int), dimension(*) :: facelr, facenode
     end subroutine get_pm_faces
+
+    subroutine get_pm_edges( nedge, edgenodes ) bind(C)
+      use iso_c_binding
+      implicit none
+      integer(kind=c_int) :: nedge
+      integer(kind=c_int), dimension(*) :: edgenodes
+    end subroutine get_pm_edges
 
     subroutine get_pm_patches( npatch, patchdata ) bind(C)
       use iso_c_binding

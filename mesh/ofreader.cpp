@@ -17,6 +17,7 @@ void init_of_mesh( int *ipar ) {
   else
     global_of_mesh = new __c_ofreader( 1, arg );
 }
+
 /*************************************
    Closes the mesh and cleares memory
    Note: This will also close the Time
@@ -26,17 +27,22 @@ void init_of_mesh( int *ipar ) {
 void close_of_mesh() {
   delete global_of_mesh;
 }
+
 /*****************************************
   Read sizes from mesh and pass it to Cc
 ******************************************/
 void get_pm_sizes( int *nnode, int *nface, int *ninternalface,
-                   int *ncell, int *npatch ) {
-  *nnode = global_of_mesh->mesh()->points().size();
-  *ncell = global_of_mesh->mesh()->cells().size();
-  *nface = global_of_mesh->mesh()->faces().size();
-  *ninternalface = global_of_mesh->mesh()->owner().size();
+                   int *nedge, int *ninternaledge, int *ncell, 
+                   int *npatch ) {
+  *nnode = global_of_mesh->mesh()->nPoints();
+  *nface = global_of_mesh->mesh()->nFaces();
+  *ninternalface = global_of_mesh->mesh()->nInternalFaces();
+  *nedge = global_of_mesh->mesh()->nEdges();
+  *ninternaledge = global_of_mesh->mesh()->nInternalEdges();
+  *ncell = global_of_mesh->mesh()->nCells();
   *npatch = global_of_mesh->mesh()->boundaryMesh().size();
-} 
+}
+
 /*****************************************
   Read nodes from mesh and pass it to Cc
 ******************************************/
@@ -47,18 +53,19 @@ void get_pm_nodes( int *nnode, double *x ) {
     }
   }
 }
+
 /*****************************************
   Read faces from mesh and pass it to Cc
 ******************************************/
 void get_pm_faces( int *nface, int *ninternalface,
-                   int *facelr, int *facenodes ) {
+                   int *facelr, int *facenode ) {
   int size = 0;
-  ///// Form facenodes
+  ///// Form facenode
   for( int i=0; i<*nface; ++i ) {
     size = global_of_mesh->mesh()->faces()[i].size();
-    facenodes[ i * 5 ] = size;
+    facenode[ i * 5 ] = size;
     for( int j=1; j <= size; ++j ) { /// Loop over number of face nodes
-      facenodes[ i * 5 + j ] = global_of_mesh->mesh()->faces()[i][j-1] + 1; // +1 FORTRAN indexing
+      facenode[ i * 5 + j ] = global_of_mesh->mesh()->faces()[i][j-1] + 1; // +1 FORTRAN indexing
     }
   }
   /// Form facelr for all internal cells
@@ -77,6 +84,18 @@ void get_pm_faces( int *nface, int *ninternalface,
     }
   }
 }
+
+/************************************************************
+   Get the mesh edge data from OpenFOAM to Cc
+*************************************************************/
+void get_pm_edges( int *nedge, int *edgenode ) {
+  const Foam::edgeList &edgL = global_of_mesh->mesh()->edges();
+  for( int i = 0; i < *nedge; ++i ) {
+    edgenode[ i * 2 ] = edgL[i][0];
+    edgenode[ i * 2 + 1 ] = edgL[i][1];
+  }
+}
+
 /******************************************************
   Read bc patches from mesh and pass it to Cc
   Some constants:
@@ -189,4 +208,6 @@ void get_nodegid( int *nnode, int *nodegid ) {
 void get_facegid( int *nface, int *facegid ) {
 
 }
+
+
 

@@ -28,10 +28,12 @@ module Mesh
   type :: polyMesh
     !> Sizes
     integer :: nnode = 0, nface = 0, ninternalface = 0, &
+               nedge = 0, ninternaledge = 0, &
                ncell = 0, npatch = 0, ilevel = 0, nlevel = 0
     !> Connecivity/Topology
     integer, dimension(:,:), allocatable :: facelr, cellface
     integer, dimension(:,:), allocatable :: facenode
+    integer, dimension(:,:), allocatable :: edgenode
     integer, dimension(:,:), pointer     :: patchdata
     !> Metrics
     !> xyz coords, cell-center, unit-normal, face-center
@@ -144,6 +146,7 @@ module Mesh
     !!! Read all sizes for allocation
     call get_pm_sizes( pm(nlevel)%nnode, pm(nlevel)%nface, &
                        pm(nlevel)%ninternalface, &
+                       pm(nlevel)%nedge, pm(nlevel)%ninternaledge, &
                        pm(nlevel)%ncell, pm(nlevel)%npatch )
     !> Allocate the polyMesh
     call allocate_pm( pm(nlevel) )
@@ -152,6 +155,8 @@ module Mesh
     !> Read faces
     call get_pm_faces( pm(nlevel)%nface, pm(nlevel)%ninternalface, &
                        pm(nlevel)%facelr, pm(nlevel)%facenode )
+    !> Read edges
+    call get_pm_edges( pm(nlevel)%nedge, pm(nlevel)%edgenode ) 
     !> Boundary condition data
     call get_pm_patches( pm(nlevel)%npatch, pm(nlevel)%patchdata )
     !> Parallel data
@@ -417,6 +422,7 @@ module Mesh
     !> Connectivity
     allocate( pm%facelr( lr_, pm%nface ) )
     allocate( pm%facenode( quadp1_, pm%nface ) )
+    allocate( pm%edgenode( lr_, pm%nedge ) )
     !> Metrics
     allocate( pm%cc( dim_, pm%ncell ) )
     allocate( pm%cv( pm%ncell ) )
