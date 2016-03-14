@@ -48,6 +48,24 @@ module Wrap
       integer(kind=c_int), dimension(*) :: patchdata
     end subroutine get_pm_patches
 
+    subroutine get_pm_walldist( ncell, walldist ) bind (C)
+      use iso_c_binding
+      implicit none
+      integer(kind=c_int) :: ncell
+      real(kind=c_double), dimension(*) :: walldist
+    end subroutine get_pm_walldist
+
+    subroutine get_pm_extra( ncell, celltype, cellnode, &
+                             cellface, celledge ) bind(C)
+      use iso_c_binding
+      implicit none
+      integer(kind=c_int) :: ncell
+      integer(kind=c_int), dimension(*) :: celltype, &
+                                           cellnode, &
+                                           cellface, &
+                                           celledge
+    end subroutine get_pm_extra
+
     subroutine check_metrics( ncell, nface, cv, cc, fc, fs, dn ) bind(C)
       use iso_c_binding
       implicit none
