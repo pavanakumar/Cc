@@ -142,7 +142,7 @@ module Mesh
       nullify(pm(ilvl)%x)
     end do
     !!! Read in the finest mesh from OpenFOAM
-    call init_of_mesh( ipar )
+    call init_mesh_api( ipar )
     !!! Read all sizes for allocation
     call get_pm_sizes( pm(nlevel)%nnode, pm(nlevel)%nface, &
                        pm(nlevel)%ninternalface, &
@@ -166,7 +166,7 @@ module Mesh
       call get_facegid( pm(nlevel)%nface, pm(nlevel)%facegid )
     end if
     !> Close the interface
-    call close_of_mesh()
+    call close_mesh_api()
 
   end subroutine reader_of
 

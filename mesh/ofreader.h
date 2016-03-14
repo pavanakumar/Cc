@@ -23,19 +23,25 @@ const int _processor_bc = 0, _wall_bc = 1, _symmetry_bc = 2,
    Function prototypes for the FORTRAN wrapper
 **********************************************************/
 extern "C" {
-  void init_of_mesh( int *ipar );
-  void close_of_mesh();
+  void init_mesh_api( int *ipar );
+  void close_mesh_api();
+  void finalize_mesh_api();
   void get_pm_sizes( int *nnode, int *nface, int *ninternalface,
                      int *nedge, int *ninternaledge, int *ncell, 
                      int *npatch );
   void get_pm_nodes( int *nNodes, double *x );
-  void get_pm_faces( int *nface, int *ninternalface, int *facelr, int *facenode );
+  void get_pm_faces( int *nface, int *ninternalface,
+                     int *facelr, int *facenode );
   void get_pm_edges( int *nedge, int *edgenode );
   void get_pm_patches( int *npatch, int *patchdata );
-  void check_metrics( int *ncell, int *nface, double *cv, double *cc, double *fc, double *fs, double *dn );
+  void check_metrics( int *ncell, int *nface,
+                      double *cv, double *cc,
+                      double *fc, double *fs, double *dn );
   void get_cellgid( int *ncell, int *cellgid );
   void get_nodegid( int *nnode, int *nodegid );
   void get_facegid( int *nface, int *facegid );
+  void get_pm_extra( int *celltype, int *cellnode,
+                     int *cellface, int *celledge );
 };
 
 /**************************************

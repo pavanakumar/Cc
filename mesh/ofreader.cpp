@@ -5,7 +5,7 @@
    1. Serial   if ipar != _enable_parallel
    2/ Parallel if ipar == _enable_parallel
 *******************************************/
-void init_of_mesh( int *ipar ) { 
+void init_mesh_api( int *ipar ) { 
   char *arg[] = 
   {
     const_cast<char *>("ddd\0"),
@@ -20,11 +20,22 @@ void init_of_mesh( int *ipar ) {
 
 /*************************************
    Closes the mesh and cleares memory
+   Note: This will not close the Time
+   object, which will call MPI_Finalize
+   so use finalize_mesh_api() to do
+   complete clean up of API interface.
+***************************************/
+void close_mesh_api() {
+  delete global_of_mesh;
+}
+
+/*************************************
+   Closes the mesh and cleares memory
    Note: This will also close the Time
    object, which will call MPI_Finalize
    so use with caution.
 ***************************************/
-void close_of_mesh() {
+void finalize_mesh_api() {
   delete global_of_mesh;
 }
 
