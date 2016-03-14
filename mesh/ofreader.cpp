@@ -150,7 +150,9 @@ void get_pm_patches( int *npatch, int *patchdata ) {
       }else {
         Foam::Info << "Unknown physical patch type \"" << physicalTypes[i] << "\"\n";
         if( physicalTypes[i] == "" )
-          Foam::Info << "Did you forget to specify a physicalType in constant\\polyMesh\\boundary for patch \"" << patchName << "\"?\n";
+          Foam::Info << "Did you forget to specify a physicalType "
+                     << "in constant\\polyMesh\\boundary for patch \""
+                     << patchName << "\"?\n";
         Foam::FatalError.exit();
       }
     }
@@ -276,7 +278,7 @@ void get_pm_extra( int *ncell, int *celltype, int *cellnode,
     for( int i = 0; i < faces.size(); ++i )
       cellface[ cellI * MAX_CELL_FACE + i] = faces[i] + 1; // +1 for FORTRAN indexing
     for( int i = 0; i < edges.size(); ++i )
-      cellface[ cellI * MAX_CELL_EDGE + i] = edges[i] + 1; // +1 for FORTRAN indexing
+      celledge[ cellI * MAX_CELL_EDGE + i] = edges[i] + 1; // +1 for FORTRAN indexing
     /// Check for correct cell model and trf the data
     if     ( model == tet )      celltype[cellI] = 1;
     else if( model == hex )      celltype[cellI] = 2;

@@ -34,11 +34,11 @@ module Wrap
       integer(kind=c_int), dimension(*) :: facelr, facenode
     end subroutine get_pm_faces
 
-    subroutine get_pm_edges( nedge, edgenodes ) bind(C)
+    subroutine get_pm_edges( nedge, edgenode ) bind(C)
       use iso_c_binding
       implicit none
       integer(kind=c_int) :: nedge
-      integer(kind=c_int), dimension(*) :: edgenodes
+      integer(kind=c_int), dimension(*) :: edgenode
     end subroutine get_pm_edges
 
     subroutine get_pm_patches( npatch, patchdata ) bind(C)

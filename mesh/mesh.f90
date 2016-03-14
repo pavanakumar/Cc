@@ -24,6 +24,8 @@ module Mesh
   integer, parameter :: processor_bc_ = 0, wall_bc_ = 1, symmetry_bc_ = 2, &
                         inlet_bc_ = 3, outlet_bc_ = 4, riemann_bc_ = 5, &
                         empty_bc_ = 6
+  integer, parameter :: max_cell_node_ = 8, max_cell_face_ = 6, &
+                        max_cell_edge_ = 12
   !>
   type :: polyMesh
     !> Sizes
@@ -35,6 +37,8 @@ module Mesh
     integer, dimension(:,:), allocatable :: facenode
     integer, dimension(:,:), allocatable :: edgenode
     integer, dimension(:,:), pointer     :: patchdata
+    integer, dimension(:),   allocatable :: celltype
+    integer, dimension(:,:), allocatable :: cellnode, celledge
     !> Metrics
     !> xyz coords, cell-center, unit-normal, face-center
     !> cell-volume, face-area
@@ -165,6 +169,12 @@ module Mesh
       call get_nodegid( pm(nlevel)%nnode, pm(nlevel)%nodegid )
       call get_facegid( pm(nlevel)%nface, pm(nlevel)%facegid )
     end if
+    !> Get edge data
+    call get_pm_edges( pm(nlevel)%nedge, pm(nlevel)%edgenode )
+    !> Get extra data
+    call get_pm_extra( pm(nlevel)%ncell, pm(nlevel)%celltype, &
+                       pm(nlevel)%cellnode, pm(nlevel)%cellface, &
+                       pm(nlevel)%celledge )
     !> Close the interface
     call close_mesh_api()
 
@@ -238,6 +248,7 @@ module Mesh
                           pm%facenode, pm%nfcolour, &
                           pm%fcolourxadj )
     deallocate(ccolour)
+
   end subroutine colour_pm
 
   !>
@@ -423,6 +434,10 @@ module Mesh
     allocate( pm%facelr( lr_, pm%nface ) )
     allocate( pm%facenode( quadp1_, pm%nface ) )
     allocate( pm%edgenode( lr_, pm%nedge ) )
+    allocate( pm%celltype( pm%ncell ) )
+    allocate( pm%cellnode( max_cell_node_, pm%ncell ), &
+              pm%cellface( max_cell_face_, pm%ncell ), &
+              pm%celledge( max_cell_edge_, pm%ncell ) )
     !> Metrics
     allocate( pm%cc( dim_, pm%ncell ) )
     allocate( pm%cv( pm%ncell ) )
