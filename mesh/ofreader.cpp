@@ -91,8 +91,8 @@ void get_pm_faces( int *nface, int *ninternalface,
 void get_pm_edges( int *nedge, int *edgenode ) {
   const Foam::edgeList &edgL = global_of_mesh->mesh()->edges();
   for( int i = 0; i < *nedge; ++i ) {
-    edgenode[ i * 2 ] = edgL[i][0];
-    edgenode[ i * 2 + 1 ] = edgL[i][1];
+    edgenode[ i * 2 ] = edgL[i][0] + 1;  /* +1 FORTRAN indexing */
+    edgenode[ i * 2 + 1 ] = edgL[i][1] + 1; /* +1 FORTRAN indexing */
   }
 }
 
