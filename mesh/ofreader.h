@@ -3,6 +3,8 @@
 #define __CC_OPENFOAM_READER__
 
 #include "fvCFD.H"
+#include "cellShape.H"
+#include "cellModeller.H"
 #include "argList.H"
 
 #include <set>
@@ -40,8 +42,9 @@ extern "C" {
   void get_cellgid( int *ncell, int *cellgid );
   void get_nodegid( int *nnode, int *nodegid );
   void get_facegid( int *nface, int *facegid );
-  void get_pm_extra( int *celltype, int *cellnode,
+  void get_pm_extra( int *ncell, int *celltype, int *cellnode,
                      int *cellface, int *celledge );
+  void get_pm_walldist( int *ncell, double *walldist );
 };
 
 /**************************************

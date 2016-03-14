@@ -141,9 +141,9 @@ module Mesh
       pm(ilvl)%ilevel = ilvl
       nullify(pm(ilvl)%x)
     end do
-    !!! Read in the finest mesh from OpenFOAM
+    !> Read in the finest mesh from OpenFOAM
     call init_mesh_api( ipar )
-    !!! Read all sizes for allocation
+    !> Read all sizes for allocation
     call get_pm_sizes( pm(nlevel)%nnode, pm(nlevel)%nface, &
                        pm(nlevel)%ninternalface, &
                        pm(nlevel)%nedge, pm(nlevel)%ninternaledge, &

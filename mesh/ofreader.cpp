@@ -173,6 +173,13 @@ void get_pm_patches( int *npatch, int *patchdata ) {
 }
 
 /************************************************************
+   Get the wall-distance values
+*************************************************************/
+void get_pm_walldist( int *ncell, double *walldist ) {
+
+}
+
+/************************************************************
    Check the mesh metrics if they are calculated correctly
 *************************************************************/
 void check_metrics
@@ -220,5 +227,64 @@ void get_facegid( int *nface, int *facegid ) {
 
 }
 
+/************************************************************************
+   Get the extra data required for forming the dual mesh
+   ncell    : Total number of cells in the mesh (for check)
+   celltype : Value ==> Type of cell (refer to OpenFOAM cellShape class)
+              0 ==> unknown
+              1 ==> tet
+              2 ==> hex
+              3 ==> prism
+              4 ==> pyr
+              5 ==> wedge
+              6 ==> tetWedge
+   cellnode : Node forming the cell (size==8)
+              (refer to cellShape class for convention)
+   cellface : Faces forming the cell (size==6)
+              (refer to cellShape class for convention)
+   celledge : Edges forming the cell (size==12)
+              (refer to cellShape class for convention)
+***********************************************************************/
+void get_pm_extra( int *ncell, int *celltype, int *cellnode,
+                   int *cellface, int *celledge ) {
+  /// Constants defining the array limits
+  const int MAX_CELL_NODE = 8, MAX_CELL_FACE = 6, MAX_CELL_EDGE = 12;
 
+  /// Allowed cell types
+  const cellModel& tet      = *(cellModeller::lookup("tet"));
+  const cellModel& hex      = *(cellModeller::lookup("hex"));
+  const cellModel& prism    = *(cellModeller::lookup("prism"));
+  const cellModel& pyr      = *(cellModeller::lookup("pyr"));
+  const cellModel& wedge    = *(cellModeller::lookup("wedge"));
+  const cellModel& tetWedge = *(cellModeller::lookup("tetWedge"));
+  /// Get the cell shapes
+  const cellShapeList& cellShapes =
+        global_of_mesh->mesh()->cellShapes();
+  ///
+  forAll(cellShapes, cellI) {
+    /// Easy access
+    const cellModel& model = cellShapes[cellI].model();
+    const labelList edges = cellShapes[cellI].meshEdges
+                             ( global_of_mesh->mesh()->edges(), 
+                               global_of_mesh->mesh()->cellEdges()[cellI] );
+    const labelList faces  = cellShapes[cellI].meshFaces
+                             ( global_of_mesh->mesh()->faces(),
+                               global_of_mesh->mesh()->cells()[cellI] );
+    /// 
+    for( int i = 0; i < cellShapes[cellI].size(); ++i )
+      cellnode[ cellI * MAX_CELL_NODE + i] = cellShapes[cellI][i] + 1; // +1 for FORTRAN indexing
+    for( int i = 0; i < faces.size(); ++i )
+      cellface[ cellI * MAX_CELL_FACE + i] = faces[i] + 1; // +1 for FORTRAN indexing
+    for( int i = 0; i < edges.size(); ++i )
+      cellface[ cellI * MAX_CELL_EDGE + i] = edges[i] + 1; // +1 for FORTRAN indexing
+    /// Check for correct cell model and trf the data
+    if     ( model == tet )      celltype[cellI] = 1;
+    else if( model == hex )      celltype[cellI] = 2;
+    else if( model == prism )    celltype[cellI] = 3;
+    else if( model == pyr )      celltype[cellI] = 4;
+    else if( model == wedge )    celltype[cellI] = 5;
+    else if( model == tetWedge ) celltype[cellI] = 6;
+    else                         celltype[cellI] = 0;
+  }
+}
 
