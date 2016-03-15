@@ -49,13 +49,8 @@ module Mesh
     !> MPI parallel run (global numbering of local entities)
     logical                            :: parallel = .false.
     integer, dimension(:), pointer     :: cellgid, nodegid, facegid
-    !> OMP parallel run data
-    integer                            :: nfcolour, nccolour
-    integer, dimension(:), allocatable :: fcolourxadj, ccolourxadj
     !> Multigrid variables
     integer, dimension(:), allocatable :: mgpart
-    !> SFC ordering
-    integer, dimension(:), allocatable :: perm, iperm
   end type polyMesh
 
   !>
@@ -120,10 +115,12 @@ module Mesh
     integer, intent(in)           :: nlevel, ipar
     type(polyMesh), intent(inout) :: pm(nlevel)
  
+    write(*,*) "Opening reader API and reading mesh ..."
     call reader_of( nlevel, pm, ipar )
-    call permute_pm( pm(nlevel) )
-    call colour_pm( pm(nlevel) )
+    write(*,*) "Done"
+    write(*,*) "Constructing MG ..."
     call create_mg_levels( nlevel, pm, ipar )
+    write(*,*) "Done"
 
   end subroutine create_mg_pm
 
@@ -169,143 +166,18 @@ module Mesh
       call get_nodegid( pm(nlevel)%nnode, pm(nlevel)%nodegid )
       call get_facegid( pm(nlevel)%nface, pm(nlevel)%facegid )
     end if
-    !> Get edge data
-    call get_pm_edges( pm(nlevel)%nedge, pm(nlevel)%edgenode )
-    !> Get extra data
-    call get_pm_extra( pm(nlevel)%ncell, pm(nlevel)%celltype, &
-                       pm(nlevel)%cellnode, pm(nlevel)%cellface, &
-                       pm(nlevel)%celledge )
+    !> Read extra data
+!    call get_pm_extra( pm(nlevel)%ncell, pm(nlevel)%celltype, &
+!                       pm(nlevel)%cellnode, pm(nlevel)%cellface, &
+!                       pm(nlevel)%celledge )
+    call mesh_metrics( pm(nlevel) ) 
     !> Close the interface
     call close_mesh_api()
 
+
   end subroutine reader_of
 
-  !>
-  subroutine permute_pm( pm )
-    use Wrap
-    implicit none
-    type(polyMesh), intent(inout) :: pm
-    !> Local vars
-    integer :: i, maxperm
-    integer, allocatable :: perm(:), iperm(:)
-
-    !> Mesh AABB
-    do i = 1, 3
-      pm%xmax(i) = maxval(pm%x(i,:))
-      pm%xmin(i) = minval(pm%x(i,:))
-    end do
-    !> Get the maximum permutation array size
-    maxperm = max( pm%ncell, pm%nnode )
-    allocate( perm(maxperm), iperm(maxperm) )
-    !> Calculate the metrics (serial for ordering cells)
-    call mesh_metrics_tapenade &
-         ( pm%nnode, pm%nface, &
-           pm%ninternalface, pm%ncell, &
-           pm%x, pm%facelr, &
-           pm%facenode, pm%cv, pm%cc, &
-           pm%dn, pm%fs, pm%fc )
-    !> Node ordering
-    perm = 0; iperm = 0
-    call sfc_perm( pm%nnode, pm%x, pm%xmin, &
-                   pm%xmax, perm, iperm )
-    call inplace_perm_real( 3, pm%nnode, pm%x, perm )
-    call renumber_face_node( pm%nnode, pm%nface, &
-                             iperm, pm%facenode )
-    if( pm%parallel .eqv. .true. ) then
-      call inplace_perm_int( 1, pm%nnode, pm%nodegid, perm )
-    end if
-    !> Cell ordering and colouring
-    perm = 0; iperm = 0
-    call sfc_perm( pm%ncell, pm%cc, pm%xmin, &
-                   pm%xmax, perm, iperm )
-    call inplace_perm_real( 3, pm%ncell, pm%cc, perm )
-    call inplace_perm_real( 1, pm%ncell, pm%cv, perm )
-    call renumber_lr( pm%nface, pm%ninternalface, &
-                      pm%ncell, iperm, &
-                      pm%facelr, pm%facenode )
-    if( pm%parallel .eqv. .true. ) then
-      call inplace_perm_int( 1, pm%ncell, pm%cellgid, perm )
-    end if
-
-  end subroutine permute_pm
-
-  !>
-  subroutine colour_pm( pm )
-    use Wrap
-    implicit none
-    type(polyMesh), intent(inout) :: pm
-    !> Local vars
-    integer :: i
-    integer, allocatable :: perm(:), iperm(:), ccolour(:)
-
-    !> Cell colouring
-    allocate(ccolour(pm%ncell))
-    call cell_colouring( pm%ninternalface, pm%ncell, &
-                         pm%facelr, pm%nccolour, ccolour)
-    !> Face colouring
-    call colour_pm_faces( pm%nface, pm%ninternalface, &
-                          pm%ncell, pm%facelr, &
-                          pm%facenode, pm%nfcolour, &
-                          pm%fcolourxadj )
-    deallocate(ccolour)
-
-  end subroutine colour_pm
-
-  !>
-  subroutine renumber_face_node( nnode, nface, iperm, facenode )
-    implicit none
-    integer, intent(in)    :: nnode, nface, iperm(nnode)
-    integer, intent(inout) :: facenode(quadp1_, nface)
-    !> Local
-    integer :: iface, inode
-
-    !! Renumber the face-nodes
-    do iface = 1, nface
-      do inode = 2, facenode(1, iface) + 1
-        facenode(inode, iface) = iperm( facenode(inode, iface) )
-      end do
-    end do
-
-  end subroutine renumber_face_node
-
-  !>
-  subroutine renumber_lr( nface, ninternalface, ncell, iperm, facelr, facenode )
-    implicit none
-    integer, intent(in)    :: nface, ninternalface, ncell, iperm(ncell)
-    integer, intent(inout) :: facelr(lr_, nface), facenode(quadp1_, nface)
-    !> Local
-    integer :: iface, itemp
-    integer, parameter :: irev(4) = (/ 5, 4, 3, 2 /)
-    
-    !> Perform the face-cell re-numbering
-    do iface = 1, ninternalface
-      facelr(lcell_, iface) = iperm(facelr(lcell_, iface))
-      facelr(rcell_, iface) = iperm(facelr(rcell_, iface))
-      !> Ensure that owner cell index is less than neighbour cell index
-      if( facelr(lcell_, iface) .gt. facelr(rcell_, iface) ) then
-        !> Swap left and right cells
-        itemp = facelr(lcell_, iface)
-        facelr(lcell_, iface) = facelr(rcell_, iface)
-        facelr(rcell_, iface) = itemp
-        !> Change the face-node orientation to get correct normal
-        if( facenode(1, iface) .eq. tri_ ) then
-          facenode(2:4, iface) = facenode( irev(2:4), iface )
-        else if( facenode(1, iface) .eq. quad_ ) then
-          facenode(2:5, iface) = facenode( irev(1:4), iface )
-        else
-          write(*,*) "Error: Unknow face type = ", facenode(1, iface)
-          stop
-        end if !> Reverse face node
-      end if !> Face left/right
-    end do
-    !> Boundary faces no need to order facenode
-    do iface = ninternalface + 1, nface
-      facelr(lcell_, iface) = iperm( facelr(lcell_, iface) )
-    end do
-
-  end subroutine renumber_lr
-
-  !> Create the Multi-Grid levels
+ !> Create the Multi-Grid levels
   !> using mgridgen wrapper
   subroutine create_mg_levels( nlevel, pm, ipar )
     use Wrap
@@ -329,7 +201,6 @@ module Mesh
       )
       !! call fix_mg_degeneracy( pm(ilvl) )
       call build_pm_coarse( pm(ilvl), pm(ilvl - 1), gr )
-      call colour_pm( pm(ilvl - 1) )
       call mesh_metrics( pm(ilvl - 1) ) 
       !> Check the multigrid volumes
       sum_fine   = sum(pm(ilvl)%cv)
@@ -399,8 +270,6 @@ module Mesh
     nullify(pmc%facegid)
     nullify(pmc%nodegid)
     deallocate(tmplr)
-    !> Construct the cell-face connectivity (LU-SGS)
-    call cellface_pm(pmc)
 
   end subroutine build_pm_coarse
 
@@ -410,10 +279,9 @@ module Mesh
     implicit none
     type( polyMesh ) :: pm
     !> Tapenade diff function
-    call mesh_metrics_tapenade_omp &
+    call mesh_metrics_tapenade &
            ( pm%nnode, pm%nface, &
              pm%ninternalface, pm%ncell, &
-             pm%nfcolour, pm%fcolourxadj, &
              pm%x, pm%facelr, &
              pm%facenode, pm%cv, pm%cc, &
              pm%dn, pm%fs, pm%fc )
@@ -469,8 +337,8 @@ module Mesh
     integer, intent(in)         :: nnode, nface, ninternalface, ncell
     real(kind=8), intent(in)    :: x(dim_, nnode)
     integer, intent(in)         :: facelr(lr_, nface), facenode(quadp1_, nface)
-    real(kind=8), intent(inout) :: cv(ncell), cc(dim_, ncell)
-    real(kind=8), intent(inout) :: dn(dim_, nface), fs(nface), fc(dim_, nface)
+    real(kind=8), intent(out) :: cv(ncell), cc(dim_, ncell)
+    real(kind=8), intent(out) :: dn(dim_, nface), fs(nface), fc(dim_, nface)
     !> Local variables
     integer :: iface, inode, i, il, ir, icell
     real(kind=8) :: r1(dim_), r2(dim_), r3(dim_), r4(dim_), fvol, fvolc(dim_)
@@ -496,7 +364,9 @@ module Mesh
         fvolc = sum(r1 * r1) + sum(r2 * r2) + sum(r3 * r3) + &
                 sum(r1 * r2) + sum(r2 * r3) + sum(r1 * r3)
         fvolc = fvolc * oneby12_ * cross_prod((r2 - r1), (r3 - r1))
-      !> Ruled face
+        !> Face volume contribution
+        fvol  = oneby6_ * sum( r1 * cross_prod(r2, r3) )
+     !> Ruled face
       else if( facenode(1, iface) .eq. quad_ ) then
         r4 = x(:, facenode( 5, iface ))
         !> Face centroid
@@ -505,6 +375,8 @@ module Mesh
         dn(:, iface) = 0.50d0 * cross_prod( (r3 - r1), (r4 - r2) )
         fs(iface)    = sqrt( sum( dn(:, iface) * dn(:, iface) ) )
         dn(:, iface) = dn(:, iface) / fs(iface)
+        !> Face volume contribution
+        fvol  = oneby12_ * sum( ( r2 + r3 )  * cross_prod(  (r1 + r2), (r3 + r4) ) )
         !> Face cell centroid contribution (Gauss quadrture)
         fvolc = 0.250d0 * ( func_1234(r1, r2, r3, r4, xi1_, eta1_) + &
                             func_1234(r1, r2, r3, r4, xi1_, eta2_) + &
@@ -516,12 +388,10 @@ module Mesh
         stop
       end if
       !> Add CC/CV contribution of face
-      !> Face volume contribution
-      fvol     = oneby3_ * sum( fc(:, iface) * dn(:, iface) ) * fs(iface)
-      cv(il)   = cv(il)   + fvol
-      cc(:,il) = cc(:,il) + fvolc
+      cv(il)     = cv(il)   - fvol
+      cc(:,il)   = cc(:,il) + fvolc
       if( iface .le. ninternalface ) then
-        cv(ir)   = cv(ir)   - fvol
+        cv(ir)   = cv(ir)   + fvol
         cc(:,ir) = cc(:,ir) - fvolc
       end if
     end do
@@ -531,82 +401,6 @@ module Mesh
     end do
 
   end subroutine mesh_metrics_tapenade
-
-  !>
-  subroutine mesh_metrics_tapenade_omp( &
-    nnode, nface, ninternalface, ncell, &
-    nfcolour, fcolourxadj, x, facelr, facenode, &
-    cv, cc, dn, fs, fc )
-    implicit none
-    integer, intent(in)         :: nnode, nface, ninternalface, ncell, nfcolour
-    integer, intent(in)         :: fcolourxadj(nfcolour + 2)
-    real(kind=8), intent(in)    :: x(dim_, nnode)
-    integer, intent(in)         :: facelr(lr_, nface), facenode(quadp1_, nface)
-    real(kind=8), intent(inout) :: cv(ncell), cc(dim_, ncell)
-    real(kind=8), intent(inout) :: dn(dim_, nface), fs(nface), fc(dim_, nface)
-    !> Local variables
-    integer :: iface, inode, i, il, ir, icell, icolour
-    real(kind=8) :: r1(dim_), r2(dim_), r3(dim_), r4(dim_), fvol, fvolc(dim_)
-
-    !> Zero out everything    
-    cv = 0.0d0; cc = 0.0d0
-    !    write(*,*) "fcolourxadj = ", fcolourxadj
-    !> Calculate the face centroids, area, and unit normal vector
-    do icolour = 1, nfcolour + 1 !> Note that fcolourxadj(nfcolour + 2) is till nface
-      do iface = fcolourxadj(icolour), fcolourxadj(icolour + 1) - 1
-        r1 = x(:, facenode( 2, iface ))
-        r2 = x(:, facenode( 3, iface ))
-        r3 = x(:, facenode( 4, iface ))
-        il = facelr( lcell_, iface)
-        ir = facelr( rcell_, iface)
-        !> Planar face
-        if( facenode(1, iface) .eq. tri_ ) then
-          !> Face centroid
-          fc(:, iface) = oneby3_ * ( r1 + r2 + r3 )
-          !> Face normal and area
-          dn(:, iface) = 0.50d0 * cross_prod( (r2 - r1), (r3 - r1) )
-          fs(iface)    = sqrt( sum( dn(:, iface) * dn(:, iface) ) )
-          dn(:, iface) = dn(:, iface) / fs(iface)
-          !> Face cell centroid contribution
-          fvolc = sum(r1 * r1) + sum(r2 * r2) + sum(r3 * r3) + &
-                  sum(r1 * r2) + sum(r2 * r3) + sum(r1 * r3)
-          fvolc = fvolc * oneby12_ * cross_prod((r2 - r1), (r3 - r1))
-        !> Ruled face
-        else if( facenode(1, iface) .eq. quad_ ) then
-          r4 = x(:, facenode( 5, iface ))
-          !> Face centroid
-          fc(:, iface) = 0.250d0 * ( r1 + r2 + r3 + r4 )
-          !> Face normal and area
-          dn(:, iface) = 0.50d0 * cross_prod( (r3 - r1), (r4 - r2) )
-          fs(iface)    = sqrt( sum( dn(:, iface) * dn(:, iface) ) )
-          dn(:, iface) = dn(:, iface) / fs(iface)
-          !> Face cell centroid contribution (Gauss quadrture)
-          fvolc = 0.250d0 * ( func_1234(r1, r2, r3, r4, xi1_, eta1_) + &
-                              func_1234(r1, r2, r3, r4, xi1_, eta2_) + &
-                              func_1234(r1, r2, r3, r4, xi2_, eta1_) + &
-                              func_1234(r1, r2, r3, r4, xi2_, eta2_) )
-        !> Error unknow face type
-        else
-          write(*,*) "Something terribly wrong ... Cannot have more than 4 nodes for a face"
-          stop
-        end if
-        !> Add CC/CV contribution of face
-        !> Face volume contribution
-        fvol     = oneby3_ * sum( fc(:, iface) * dn(:, iface) ) * fs(iface)
-        cv(il)   = cv(il)   + fvol
-        cc(:,il) = cc(:,il) + fvolc
-        if( iface .le. ninternalface ) then
-          cv(ir)   = cv(ir)   - fvol
-          cc(:,ir) = cc(:,ir) - fvolc
-        end if
-      end do
-    end do
-    !> Do cell summation
-    do icell = 1, ncell
-      cc(:,icell) = 0.50d0 * cc(:,icell) / cv(icell)
-    end do
-
-  end subroutine mesh_metrics_tapenade_omp
 
   !> Construct the CSR graph from the edge2nodes data, which
   !> are input to the METIS partitioner routine
@@ -632,6 +426,7 @@ module Mesh
     gr%adjncy = -1
     gr%vsurf  = 0.0d0
     gr%vvol   = pm%cv
+    gr%adjwgt = -100.0d0
     !> First pass form the sizes
     do i = 1, pm%ninternalface
       gr%xadj(pm%facelr(lcell_, i)) = gr%xadj(pm%facelr(lcell_, i)) + 1
@@ -656,11 +451,11 @@ module Mesh
     !> Second pass form the adjncy
     do i = 1, pm%ninternalface
       !> Push the left face data
-      gr%xadj(pm%facelr(lcell_, i)) = gr%xadj(pm%facelr(lcell_, i)) + 1
+      gr%xadj(pm%facelr(lcell_, i))            = gr%xadj(pm%facelr(lcell_, i)) + 1
       gr%adjncy(gr%xadj(pm%facelr(lcell_, i))) = pm%facelr(rcell_, i) - 1
       gr%adjwgt(gr%xadj(pm%facelr(lcell_, i))) = pm%fs(i)
       !> Push the right face data
-      gr%xadj(pm%facelr(rcell_, i)) = gr%xadj(pm%facelr(rcell_, i)) + 1
+      gr%xadj(pm%facelr(rcell_, i))            = gr%xadj(pm%facelr(rcell_, i)) + 1
       gr%adjncy(gr%xadj(pm%facelr(rcell_, i))) = pm%facelr(lcell_, i) - 1
       gr%adjwgt(gr%xadj(pm%facelr(rcell_, i))) = pm%fs(i)
     end do
@@ -671,343 +466,12 @@ module Mesh
     if(count(gr%adjncy .lt. 0) .ne. 0) then
       write(*,*) 'Error: Adjncy array from edge2nodes not constructed correctly'
     end if
+    !> Check to see if the adjncywgt array is formed correctly
+    if(count(gr%adjwgt .lt. 0.0d0) .ne. 0) then
+      write(*,*) 'Error: Adjncy weight array from edge2nodes not constructed correctly'
+    end if
 
   end subroutine pm_to_graph
 
-  !>
-  subroutine colour_pm_faces( nface, ninternalface, ncell, facelr, &
-                              facenode, nfcolour, fcolourxadj )
-    implicit none 
-    integer, intent(in) :: nface, ninternalface, ncell
-    integer, intent(inout) :: facelr(lr_, nface), &
-                              facenode(quadp1_, nface)
-    integer, intent(out) :: nfcolour
-    integer, intent(out), allocatable :: fcolourxadj(:)
-    !> Local vars
-    integer :: iface, icolour
-    integer, allocatable :: fcolour(:), dummylr(:,:), &
-                            dummynode(:,:)
-    !> Colouring of faces
-    allocate(dummylr(lr_, ninternalface), &
-             dummynode(quadp1_, ninternalface), &
-             fcolour(ninternalface))
-    !> Copy all internal faces to dummy arrays to calculate colouring
-    dummylr(:, 1:ninternalface) = facelr(:, 1:ninternalface)
-    dummynode(:, 1:ninternalface) = facenode(:, 1:ninternalface)
-    call face_colouring( ninternalface, ncell, dummylr, nfcolour, fcolour )
-    !> Construct colour xadj array
-    allocate(fcolourxadj(nfcolour + 2))
-    fcolourxadj = 0
-    do iface = 1, ninternalface
-      fcolourxadj(fcolour(iface) + 1) = fcolourxadj(fcolour(iface) + 1) + 1
-    end do
-    fcolourxadj(1) = 1
-    do icolour = 1, nfcolour
-      fcolourxadj(icolour + 1) = fcolourxadj(icolour) + fcolourxadj(icolour + 1)
-    end do
-    !> Order faces by colour
-    do iface = 1, ninternalface
-      icolour = fcolour(iface)
-      facelr(:, fcolourxadj(icolour))   = dummylr(:, iface)
-      facenode(:, fcolourxadj(icolour)) = dummynode(:, iface)
-      fcolourxadj(icolour) = fcolourxadj(icolour) + 1
-    end do
-    fcolourxadj = cshift(fcolourxadj, nfcolour + 1)
-    fcolourxadj(1) = 1   
-    fcolourxadj( nfcolour + 2 ) = nface + 1
-    deallocate( dummylr, dummynode, fcolour )
-    !write(*,*) "Total fcolours = ", nfcolour
-    !write(*,*) "Colour Xadj = ", fcolourxadj
-
-  end subroutine colour_pm_faces
-
-  !>
-  subroutine face_colouring(ninternalface, ncell, facelr, nfcolour, fcolour)
-    implicit none
-    integer, intent(in)    :: ninternalface, ncell
-    integer, intent(inout) :: facelr(lr_, ninternalface), fcolour(ninternalface)
-    integer, intent(out)   :: nfcolour
-    !>
-    integer :: iface, lcell, rcell, ileft, iright
-    integer,dimension(lr_ * ninternalface) :: adjncy
-    integer,dimension(ncell + 1) :: xadj
-    integer :: mycolour
-    logical :: free
-    !> Form the face-cell xadj and adjncy
-    call cell_face_xadj_adjncy(ninternalface, ncell, facelr, xadj, adjncy)
-    !> Init colours to zero
-    fcolour = 0
-    !> Loop over all faces
-    do iface = 1, ninternalface
-      lcell = facelr(lcell_,iface)
-      rcell = facelr(rcell_,iface)
-      !> go through the colors and check if we can still assign them to this face
-      mycolour = 1
-      do
-        !> start assuming that we can use this color
-        free = .true.
-        !> check if the color is already taken by any other face connected to left cell
-        do ileft = xadj(lcell), xadj(lcell + 1) - 1
-          if(mycolour .eq. fcolour( adjncy(ileft) ) )then
-            free = .false.
-          end if
-        end do
-        !> check if the color is already taken by any other face connected to right cell
-        do iright = xadj(rcell), xadj(rcell + 1) - 1
-          if(mycolour .eq. fcolour( adjncy(iright) )) then
-            free = .false.
-          end if
-        end do
-        !> if the color wasn't used by any other face, we can still assign it.
-        !> exit here and don't change c any further
-        if(free) then
-          exit
-        !> if it isn't free any more, we try the next color. Go back
-        !> and do another cycle.
-        else
-          mycolour = mycolour + 1
-          cycle
-        end if
-      end do
-      !> if the loop terminated, it found a free color and stored it in mycolour. We assign
-      !> this color to i^{th} face now.
-      fcolour(iface) = mycolour
-    end do
-    !> Total number of colours
-    nfcolour = maxval(fcolour)
-    !> Check if everything went well
-    if( minval(fcolour) .eq. 0 ) then
-      write(*,*) "Error: in fcolour module setting nfcolour to one and assign one fcolour to all faces"
-      nfcolour = 1
-      fcolour  = 1
-    end if
-
-  end subroutine face_colouring
-
-  !>
-  subroutine cell_face_xadj_adjncy(ninternalface, ncell, facelr, xadj, adjncy)
-    implicit none
-    integer, intent(in)  :: ninternalface, ncell
-    integer, intent(in)  :: facelr(lr_, ninternalface)
-    integer, intent(out) :: xadj(ncell + 1), &
-                            adjncy(lr_ * ninternalface)
-    !>
-    integer, dimension(ncell) :: counter
-    integer :: iface, lcell, rcell, icell
-
-    !> first sweep: count how many faces are connected to each cell
-    counter = 0
-    do iface = 1, ninternalface
-      lcell = facelr(lcell_, iface)
-      rcell = facelr(rcell_, iface)
-      counter(lcell) = counter(lcell) + 1
-      counter(rcell) = counter(rcell) + 1
-    end do
-
-    !> use the counter to initialise xadj
-    xadj(1) = 1
-    do icell = 1, ncell
-      xadj(icell + 1) = xadj(icell) + counter(icell)
-    end do
-    !> reset the counter, we use it again
-    counter = 0
-
-    !> fill the adjncy array. For each cell, we fill
-    !> the section that starts at the position marked by xadj
-    do iface = 1, ninternalface
-      lcell = facelr(lcell_, iface)
-      rcell = facelr(rcell_, iface)
-      adjncy(xadj(lcell) + counter(lcell)) = iface
-      adjncy(xadj(rcell) + counter(rcell)) = iface
-      counter(lcell) = counter(lcell) + 1
-      counter(rcell) = counter(rcell) + 1
-    end do
-    
-  end subroutine cell_face_xadj_adjncy
-
-  !>
-  subroutine colour_pm_cells( nface, ninternalface, &
-                              facelr, facenode )
-    implicit none
-    integer, intent(in)    :: nface, ninternalface
-    integer, intent(inout) :: facelr(lr_, nface), &
-                              facenode(quadp1_, nface)
-    
-  end subroutine colour_pm_cells
-
-  !>
-  subroutine cell_colouring(ninternalface, ncell, facelr, nccolour, ccolour)
-    implicit none
-    integer, intent(in)    :: ninternalface, ncell
-    integer, intent(inout) :: facelr(lr_, ninternalface)
-    integer, intent(out)   :: nccolour, ccolour(ncell)
-    !> Local
-    integer :: icell, ixadj, mycolour
-    integer,dimension(lr_ * ninternalface) :: adjncy
-    integer,dimension(ncell + 1) :: xadj
-    logical :: avail(ncell)
-
-    !> Form the cell xadj and adjncy
-    call cell_xadj_adjncy(ninternalface, ncell, facelr, xadj, adjncy)
-    !> Init colours to zero and assign colour 1 to first cell
-    ccolour = 0; ccolour(1) = 1
-    !> Is a colour available
-    avail = .false.
-    ccolour(1) = 1
-    !> Assign colour to all other cells
-    do icell = 2, ncell
-      !> Process all adjacent cells and flag their colors
-      !> as unavailable
-      do ixadj = xadj(icell), xadj(icell + 1) - 1
-        if( ccolour( adjncy(ixadj) ) .ne. 0 ) then
-          avail( ccolour( adjncy(ixadj) ) ) = .true.
-        end if
-      end do
-      !> Find first available colour
-      do mycolour = 1, ncell
-        if(avail(mycolour) .eqv. .false.) exit
-      end do
-      !> Assign the first available colour to icell
-      ccolour(icell) = mycolour
-      !> Reset the values back to false for the next iteration
-      where ( ccolour .ne. 0 ) avail = .false.
-    end do
-
-  end subroutine cell_colouring
-
- !>
-  subroutine cell_xadj_adjncy(ninternalface, ncell, facelr, xadj, adjncy)
-    implicit none
-    integer, intent(in)  :: ninternalface, ncell
-    integer, intent(in)  :: facelr(lr_, ninternalface)
-    integer, intent(out) :: xadj(ncell + 1), &
-                            adjncy(lr_ * ninternalface)
-    !>
-    integer, dimension(ncell) :: counter
-    integer :: iface, lcell, rcell, icell
-
-    !> first sweep: count how many faces are connected to each cell
-    counter = 0
-    do iface = 1, ninternalface
-      lcell = facelr(lcell_, iface)
-      rcell = facelr(rcell_, iface)
-      counter(lcell) = counter(lcell) + 1
-      counter(rcell) = counter(rcell) + 1
-    end do
-
-    !> use the counter to initialise xadj
-    xadj(1) = 1
-    do icell = 1, ncell
-      xadj(icell + 1) = xadj(icell) + counter(icell)
-    end do
-    !> reset the counter, we use it again
-    counter = 0
-
-    !> fill the adjncy array. For each cell, we fill
-    !> the section that starts at the position marked by xadj
-    do iface = 1, ninternalface
-      lcell = facelr(lcell_, iface)
-      rcell = facelr(rcell_, iface)
-      adjncy(xadj(lcell) + counter(lcell)) = rcell
-      adjncy(xadj(rcell) + counter(rcell)) = lcell
-      counter(lcell) = counter(lcell) + 1
-      counter(rcell) = counter(rcell) + 1
-    end do
- 
-  end subroutine cell_xadj_adjncy
-
-  !>
-  subroutine cellface_pm(pm)
-    implicit none
-    type(polyMesh), intent(inout) :: pm
-
-  end subroutine cellface_pm
-
-  !>
-  subroutine tecio_write( rank, nlevel, pm )
-    implicit none
-    integer :: rank, nlevel
-    type(polyMesh) :: pm(nlevel)
-    !> Local vars
-    real(kind=8) :: tempxyz( pm(nlevel)%nnode ), soltime
-    integer :: ftype, debug, sid, pzone, &
-               dpack, isdouble, shrconn, ztype, &
-               varshare(3) = (/ 1, 1, 1 /), ilvl
-    integer, pointer :: NullPtr => Null()
-    real(kind=8) :: stime = 0.0d0
-    character :: nullchar
-    integer :: ierr, tecini112, tecend112
-    !!std::string _zone_name, _var_list, _file_name, _scratch_dir;
-    !!std::string _title;
-    !!INTEGER4 *_pasiv_var_arr, *_val_loc_arr
-    debug = 0; ftype = 1; isdouble = 1
-    ierr = tecini112( 'Cc'//nullchar, 'x y z'//nullchar, &
-                      'mg_mesh.plt'//nullchar, '.'//nullchar, &
-                      debug, ftype, isdouble )
-    ztype = 7 !FEPOLYHEDRON
-!    ierr = teczne112( "Finest", ztype, pm(nlevel)%nnode, &
-!                      pm(nlevel)%ncell, pm(nlevel)%nface, &
-!                      0, 0, 0, stime, sid, pzone, dpack, &
-
-    !! Print the mg mesh as shared zones
-    do ilvl = nlevel, 1, -1
-      
-      
-    end do
-    ierr = tecend112()
-
-  end subroutine tecio_write
-
-  !>
-  subroutine inplace_perm_real( m, n, x, myperm )
-    implicit none
-    integer, intent(in) :: m, n, myperm(n)
-    real(kind=8), intent(inout) :: x(m, n)
-    !> Local
-    integer :: i, j, k, perm(n)
-    real(kind=8) :: temp(m)
-    !> Store permutation array
-    perm = myperm
-    do i = 1, n
-      if( i .ne. perm(i) ) then
-        temp(1:m) = x(1:m, i)
-        j = i
-        do while( i .ne. perm(j) )
-          k = perm(j)
-          x(:, j) = x(:, k)
-          perm(j) = j
-          j = k
-        end do
-        x(1:m, j) = temp(1:m)
-        perm(j) = j
-      end if
-    end do
-  end subroutine inplace_perm_real
-
-  !>
-  subroutine inplace_perm_int( m, n, x, myperm )
-    implicit none
-    integer, intent(in) :: m, n, myperm(n)
-    integer, intent(inout) :: x(m, n)
-    !> Local
-    integer :: i, j, k, perm(n)
-    integer :: temp(m)
-    !> Store permutation array
-    perm = myperm
-    do i = 1, n
-      if( i .ne. perm(i) ) then
-        temp(1:m) = x(1:m, i)
-        j = i
-        do while( i .ne. perm(j) )
-          k = perm(j)
-          x(:, j) = x(:, k)
-          perm(j) = j
-          j = k
-        end do
-        x(1:m, j) = temp(1:m)
-        perm(j) = j
-      end if
-    end do
-  end subroutine inplace_perm_int
-
 end module Mesh
+

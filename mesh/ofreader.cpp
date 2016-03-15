@@ -70,29 +70,19 @@ void get_pm_nodes( int *nnode, double *x ) {
 ******************************************/
 void get_pm_faces( int *nface, int *ninternalface,
                    int *facelr, int *facenode ) {
-  int size = 0;
+  int size = 0, right;
   ///// Form facenode
-  for( int i=0; i<*nface; ++i ) {
+  for( int i = 0; i < *nface; ++i ) {
     size = global_of_mesh->mesh()->faces()[i].size();
     facenode[ i * 5 ] = size;
-    for( int j=1; j <= size; ++j ) { /// Loop over number of face nodes
-      facenode[ i * 5 + j ] = global_of_mesh->mesh()->faces()[i][j-1] + 1; // +1 FORTRAN indexing
-    }
-  }
-  /// Form facelr for all internal cells
-  for( int i=0; i<*ninternalface; ++i ) {
-    facelr[ i * 2 ]     = global_of_mesh->mesh()->owner()[i] + 1; // +1 FORTRAN indexing
-    facelr[ i * 2 + 1 ] = global_of_mesh->mesh()->neighbour()[i] + 1; // +1 FORTRAN indexing
-  } 
-  /// Patch faces only have owner and no neighbour cell
-  int npatch = global_of_mesh->mesh()->boundaryMesh().size();
-  for( int i=0; i<npatch; ++i ) {
-    int start = global_of_mesh->mesh()->boundaryMesh()[i].start();
-    int size  = global_of_mesh->mesh()->boundaryMesh()[i].size();
-    for( int j=0; j<size; ++j ) {
-      facelr[ ( start + j ) * 2 ] = global_of_mesh->mesh()->boundaryMesh()[i].faceCells()[j] + 1; // +1 FORTRAN indexing
-      facelr[ ( start + j ) * 2 + 1] = 0; /// Boundary patches have 0 as their neighbour cell ID (invalid)
-    }
+    /// Face nodes loop
+    for( int j = 1; j <= size; ++j )
+      facenode[ i * 5 + j ] = global_of_mesh->mesh()->faces()[i][ j - 1 ] + 1; // +1 FORTRAN indexing
+    /// Face L/R
+    if( i < *ninternalface ) right = global_of_mesh->mesh()->faceNeighbour()[i] + 1; // +1 FORTRAN indexing
+    else right = 0; // Error
+    facelr[ i * 2 + 0 ] = global_of_mesh->mesh()->faceOwner()[i] + 1; // +1 FORTRAN indexing
+    facelr[ i * 2 + 1 ] = right;
   }
 }
 
@@ -102,7 +92,7 @@ void get_pm_faces( int *nface, int *ninternalface,
 void get_pm_edges( int *nedge, int *edgenode ) {
   const Foam::edgeList &edgL = global_of_mesh->mesh()->edges();
   for( int i = 0; i < *nedge; ++i ) {
-    edgenode[ i * 2 ] = edgL[i][0] + 1;  /* +1 FORTRAN indexing */
+    edgenode[ i * 2 + 0 ] = edgL[i][0] + 1;  /* +1 FORTRAN indexing */
     edgenode[ i * 2 + 1 ] = edgL[i][1] + 1; /* +1 FORTRAN indexing */
   }
 }
@@ -192,12 +182,29 @@ void check_metrics
 //  std::cerr << "Epsilon = " << std::numeric_limits<double>::epsilon() << "\n";
 //  std::cerr << "Round err  = " << std::numeric_limits<double>::round_error() << "\n";
   const double eps = 1.0e-10;//std::numeric_limits<double>::epsilon() * 10.0;
+#if 0
+  for( int i=0; i<*nface; ++i ) {
+    Foam::Info << i << "  "
+               << global_of_mesh->mesh()->Sf()[i][0] << "  "
+               << global_of_mesh->mesh()->Sf()[i][1] << "  "
+               << global_of_mesh->mesh()->Sf()[i][2] << "  "
+               << dn[ i * 3 + 0 ] * fs[i] << "  "
+               << dn[ i * 3 + 1 ] * fs[i] << "  "
+               << dn[ i * 3 + 2 ] * fs[i] << "\n";
+  }
+#endif
+#if 1
   for( int i=0; i<*ncell; ++i ) {
+#endif
+#if 0
     double cv_chk = std::abs( (cv[i] - global_of_mesh->mesh()->V()[i]) / cv[i] );
     if( cv_chk > eps ) {
-      Foam::Info << "Error: Metrics not calculated correctly (cell volume) : "
-                 << cv_chk << "\n";
+      Foam::Info << "volume error  " << i << " = " << cv_chk << "\n";
+//      Foam::Info << "Error: Metrics not calculated correctly (cell volume) : "
+//                 << cv_chk << "\n";
     }
+#endif
+#if 0
     for( int j=0; j<3; ++j ) {
       cv_chk = std::abs( (cc[i * 3 + j] - global_of_mesh->mesh()->C()[i][j]) );// / cc[i * 3 + j] );
       if( cv_chk > eps ) {
@@ -205,6 +212,13 @@ void check_metrics
                    << cv_chk << " " << cc[i * 3 + j]  << "\n";
       }
     }
+#endif
+#if 0
+    std::cout << "volume   " << i << " = " << cv[i] << "  " << global_of_mesh->mesh()->V()[i] << "\n";
+    std::cout << "centroid " << i << " = " << cc[i*3] << "  " << cc[i*3+1] << "  " << cc[i*3+2] << "  "
+              << global_of_mesh->mesh()->C()[i][0] << "  " << global_of_mesh->mesh()->C()[i][1] << "  "
+              << global_of_mesh->mesh()->C()[i][2] << "\n";
+#endif
   }
 }
 
