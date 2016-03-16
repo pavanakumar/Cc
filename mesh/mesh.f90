@@ -62,52 +62,48 @@ module Mesh
 
   contains
 
-  !>
-  function cross_prod(x, y)
+  !> Cross product of vector of length 3
+  pure function cross_prod(x, y) result(ret)
     implicit none
     real(kind=8),dimension(dim_),intent(in) :: x, y
-    real(kind=8),dimension(dim_)            :: cross_prod
+    real(kind=8),dimension(dim_)            :: ret
     integer, dimension(dim_), parameter     :: c1 = (/2,3,1/), &
                                                c2 = (/3,1,2/)
-    cross_prod = x(c1) * y(c2) - y(c1) * x(c2)
-
+    ret = x(c1) * y(c2) - y(c1) * x(c2)
   end function cross_prod
 
-  !>
-  function r_1234(r1, r2, r3, r4, xi, eta)
+  !> Ruled face position vector
+  pure function r_ruled(r1, r2, r3, r4, xi, eta) result(ret)
     implicit none
     real(kind=8),dimension(dim_),intent(in) :: r1, r2, r3, r4
     real(kind=8), intent(in)                :: eta, xi
-    real(kind=8),dimension(dim_)            :: r_1234
-    r_1234 = ( r1 * ( 1.0d0 - xi ) + r2 * xi ) * ( 1.0d0 - eta ) + &
-             ( r4 * ( 1.0d0 - xi ) + r3 * xi ) * eta
+    real(kind=8),dimension(dim_)            :: ret
+    ret = ( r1 * ( 1.0d0 - xi ) + r2 * xi ) * ( 1.0d0 - eta ) + &
+          ( r4 * ( 1.0d0 - xi ) + r3 * xi ) * eta
+  end function r_ruled
 
-  end function r_1234
-
-  !>
-  function dS_1234(r1, r2, r3, r4, xi, eta)
+  !> Ruled face area element
+  pure function dS_ruled(r1, r2, r3, r4, xi, eta) result(ret)
     implicit none
     real(kind=8),dimension(dim_),intent(in) :: r1, r2, r3, r4
     real(kind=8), intent(in)                :: eta, xi
-    real(kind=8),dimension(dim_)            :: dS_1234, temp1, temp2
+    real(kind=8),dimension(dim_)            :: ret, temp1, temp2
     temp1   = (r2 - r1) * ( 1.0d0 - eta ) + (r3 - r4) * eta
     temp2   = (r4 - r1) * ( 1.0d0 - xi  ) + (r3 - r2) * xi
-    dS_1234 = cross_prod( temp1, temp2 )
+    ret     = cross_prod( temp1, temp2 )
+  end function dS_ruled
 
-  end function dS_1234
-
-  !>
-  function func_1234(r1, r2, r3, r4, xi, eta)
+  !> Ruled face contribution to centroid
+  pure function cc_ruled(r1, r2, r3, r4, xi, eta) result(ret)
     implicit none
     real(kind=8),dimension(dim_),intent(in) :: r1, r2, r3, r4
     real(kind=8), intent(in)                :: eta, xi
-    real(kind=8),dimension(dim_)            :: temp, func_1234
+    real(kind=8),dimension(dim_)            :: temp, ret
     real(kind=8)                            :: temp_dot
-    temp      = r_1234(r1, r2, r3, r4, xi, eta)
+    temp      = r_ruled(r1, r2, r3, r4, xi, eta)
     temp_dot  = sum( temp * temp )
-    func_1234 = temp_dot * dS_1234(r1, r2, r3, r4, xi, eta)
-
-  end function func_1234
+    ret       = temp_dot * dS_ruled(r1, r2, r3, r4, xi, eta)
+  end function cc_ruled
 
   !>
   subroutine create_mg_pm( nlevel, pm, ipar )
@@ -121,7 +117,6 @@ module Mesh
     write(*,*) "Constructing MG ..."
     call create_mg_levels( nlevel, pm, ipar )
     write(*,*) "Done"
-
   end subroutine create_mg_pm
 
   !> Read the polyMesh data from OpenFOAM reader
@@ -173,8 +168,6 @@ module Mesh
     call mesh_metrics( pm(nlevel) ) 
     !> Close the interface
     call close_mesh_api()
-
-
   end subroutine reader_of
 
  !> Create the Multi-Grid levels
@@ -209,7 +202,6 @@ module Mesh
         write(*,*) "Error: In metrics", sum_fine, sum_coarse
       end if
     end do
-
   end subroutine create_mg_levels
 
   !>
@@ -270,7 +262,6 @@ module Mesh
     nullify(pmc%facegid)
     nullify(pmc%nodegid)
     deallocate(tmplr)
-
   end subroutine build_pm_coarse
 
   !> Simpler wrapper for metrics
@@ -291,7 +282,6 @@ module Mesh
            ( pm%ncell, pm%nface, pm%cv, &
              pm%cc, pm%fc, pm%fs, pm%dn )
     end if
-
   end subroutine mesh_metrics
 
   !>
@@ -326,7 +316,6 @@ module Mesh
         allocate( pm%nodegid( pm%nnode ) )
       end if
     end if
-
   end subroutine allocate_pm
 
   !>
@@ -345,61 +334,61 @@ module Mesh
 
     !> Zero out everything
     cv = 0.0d0; cc = 0.0d0
-    !> Calculate the face centroids, area, and unit normal vector
-    do iface = 1, nface
+    !> Internal face loop for metric calculation
+    do iface = 1, ninternalface
       r1 = x(:, facenode( 2, iface ))
       r2 = x(:, facenode( 3, iface ))
       r3 = x(:, facenode( 4, iface ))
+      r4 = x(:, facenode( 5, iface ))
       il = facelr( lcell_, iface)
       ir = facelr( rcell_, iface)
-      !> Planar face
-      if( facenode(1, iface) .eq. tri_ ) then
-        !> Face centroid
-        fc(:, iface) = oneby3_ * ( r1 + r2 + r3 )
-        !> Face normal and area
-        dn(:, iface) = 0.50d0 * cross_prod( (r2 - r1), (r3 - r1) )
-        fs(iface)    = sqrt( sum( dn(:, iface) * dn(:, iface) ) )
-        dn(:, iface) = dn(:, iface) / fs(iface)
-        !> Face cell centroid contribution
-        fvolc = sum(r1 * r1) + sum(r2 * r2) + sum(r3 * r3) + &
-                sum(r1 * r2) + sum(r2 * r3) + sum(r1 * r3)
-        fvolc = fvolc * oneby12_ * cross_prod((r2 - r1), (r3 - r1))
-        !> Face volume contribution
-        fvol  = oneby6_ * sum( r1 * cross_prod(r2, r3) )
-     !> Ruled face
-      else if( facenode(1, iface) .eq. quad_ ) then
-        r4 = x(:, facenode( 5, iface ))
-        !> Face centroid
-        fc(:, iface) = 0.250d0 * ( r1 + r2 + r3 + r4 )
-        !> Face normal and area
-        dn(:, iface) = 0.50d0 * cross_prod( (r3 - r1), (r4 - r2) )
-        fs(iface)    = sqrt( sum( dn(:, iface) * dn(:, iface) ) )
-        dn(:, iface) = dn(:, iface) / fs(iface)
-        !> Face volume contribution
-        fvol  = oneby12_ * sum( ( r2 + r3 )  * cross_prod(  (r1 + r2), (r3 + r4) ) )
-        !> Face cell centroid contribution (Gauss quadrture)
-        fvolc = 0.250d0 * ( func_1234(r1, r2, r3, r4, xi1_, eta1_) + &
-                            func_1234(r1, r2, r3, r4, xi1_, eta2_) + &
-                            func_1234(r1, r2, r3, r4, xi2_, eta1_) + &
-                            func_1234(r1, r2, r3, r4, xi2_, eta2_) )
-      !> Error unknow face type
-      else
-        write(*,*) "Something terribly wrong ... Cannot have more than 4 nodes for a face"
-        stop
-      end if
-      !> Add CC/CV contribution of face
-      cv(il)     = cv(il)   - fvol
-      cc(:,il)   = cc(:,il) + fvolc
-      if( iface .le. ninternalface ) then
-        cv(ir)   = cv(ir)   + fvol
-        cc(:,ir) = cc(:,ir) - fvolc
-      end if
+      !> Face centroid
+      fc(:, iface) = 0.250d0 * ( r1 + r2 + r3 + r4 )
+      !> Face normal and area
+      dn(:, iface) = 0.50d0 * cross_prod( (r3 - r1), (r4 - r2) )
+      fs(iface)    = sqrt( sum( dn(:, iface) * dn(:, iface) ) )
+      dn(:, iface) = dn(:, iface) / fs(iface)
+      !> Face volume contribution
+      fvol         = oneby12_ * sum( ( r1 + r2 )  * cross_prod(  (r2 + r3), (r3 + r4) ) )
+      !> Face cell centroid contribution (Gauss quadrture)
+      fvolc        = 0.250d0 * ( cc_ruled(r1, r2, r3, r4, xi1_, eta1_) + &
+                                 cc_ruled(r1, r2, r3, r4, xi1_, eta2_) + &
+                                 cc_ruled(r1, r2, r3, r4, xi2_, eta1_) + &
+                                 cc_ruled(r1, r2, r3, r4, xi2_, eta2_) )
+      !> Add CC/CV contribution of internal face
+      cv(il)       = cv(il)   + fvol
+      cc(:,il)     = cc(:,il) + fvolc
+      cv(ir)       = cv(ir)   - fvol
+      cc(:,ir)     = cc(:,ir) - fvolc
+    end do
+    !> Boundary face loop for metric calculation
+    do iface = ninternalface + 1, nface
+      r1 = x(:, facenode( 2, iface ))
+      r2 = x(:, facenode( 3, iface ))
+      r3 = x(:, facenode( 4, iface ))
+      r4 = x(:, facenode( 5, iface ))
+      il = facelr( lcell_, iface)
+      !> Face centroid
+      fc(:, iface) = 0.250d0 * ( r1 + r2 + r3 + r4 )
+      !> Face normal and area
+      dn(:, iface) = 0.50d0 * cross_prod( (r3 - r1), (r4 - r2) )
+      fs(iface)    = sqrt( sum( dn(:, iface) * dn(:, iface) ) )
+      dn(:, iface) = dn(:, iface) / fs(iface)
+      !> Face volume contribution
+      fvol         = oneby12_ * sum( ( r1 + r2 )  * cross_prod(  (r2 + r3), (r3 + r4) ) )
+      !> Face cell centroid contribution (Gauss quadrture)
+      fvolc        = 0.250d0 * ( cc_ruled(r1, r2, r3, r4, xi1_, eta1_) + &
+                                 cc_ruled(r1, r2, r3, r4, xi1_, eta2_) + &
+                                 cc_ruled(r1, r2, r3, r4, xi2_, eta1_) + &
+                                 cc_ruled(r1, r2, r3, r4, xi2_, eta2_) )
+      !> Add CC/CV contribution of boundary face
+      cv(il)       = cv(il)   + fvol
+      cc(:,il)     = cc(:,il) + fvolc
     end do
     !> Do cell summation
     do icell = 1, ncell
-      cc(:,icell) = 0.50d0 * cc(:,icell) / cv(icell)
+      cc(:,icell)  = 0.50d0 * cc(:,icell) / cv(icell)
     end do
-
   end subroutine mesh_metrics_tapenade
 
   !> Construct the CSR graph from the edge2nodes data, which

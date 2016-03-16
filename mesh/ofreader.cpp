@@ -74,7 +74,7 @@ void get_pm_faces( int *nface, int *ninternalface,
   ///// Form facenode
   for( int i = 0; i < *nface; ++i ) {
     size = global_of_mesh->mesh()->faces()[i].size();
-    facenode[ i * 5 ] = size;
+    facenode[ i * 5 + 0 ] = size;
     /// Face nodes loop
     for( int j = 1; j <= size; ++j )
       facenode[ i * 5 + j ] = global_of_mesh->mesh()->faces()[i][ j - 1 ] + 1; // +1 FORTRAN indexing
@@ -84,6 +84,11 @@ void get_pm_faces( int *nface, int *ninternalface,
     facelr[ i * 2 + 0 ] = global_of_mesh->mesh()->faceOwner()[i] + 1; // +1 FORTRAN indexing
     facelr[ i * 2 + 1 ] = right;
   }
+  ///// Fix facenode for planar faces     0   1   2   3   4
+  ///// (last node repeats (for example) [3, 13, 22, 37, 37]
+  for( int i = 0; i < *nface; ++i )
+    if( facenode[ i * 5 + 0 ] == 3 ) // Planar face
+      facenode[ i * 5 + 4 ] = facenode[ i * 5 + 3 ];
 }
 
 /************************************************************
@@ -182,7 +187,8 @@ void check_metrics
 //  std::cerr << "Epsilon = " << std::numeric_limits<double>::epsilon() << "\n";
 //  std::cerr << "Round err  = " << std::numeric_limits<double>::round_error() << "\n";
   const double eps = 1.0e-10;//std::numeric_limits<double>::epsilon() * 10.0;
-#if 0
+#if 1
+  Foam::Info << "Face normal\n";
   for( int i=0; i<*nface; ++i ) {
     Foam::Info << i << "  "
                << global_of_mesh->mesh()->Sf()[i][0] << "  "
@@ -213,7 +219,7 @@ void check_metrics
       }
     }
 #endif
-#if 0
+#if 1
     std::cout << "volume   " << i << " = " << cv[i] << "  " << global_of_mesh->mesh()->V()[i] << "\n";
     std::cout << "centroid " << i << " = " << cc[i*3] << "  " << cc[i*3+1] << "  " << cc[i*3+2] << "  "
               << global_of_mesh->mesh()->C()[i][0] << "  " << global_of_mesh->mesh()->C()[i][1] << "  "
