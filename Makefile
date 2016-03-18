@@ -2,7 +2,10 @@ include make.of.inc
 include make.inc
 
 SOURCE= mesh/wrap.f90 \
-        mesh/mesh.f90 \
+        mesh/polyMeshConstant.f90 \
+        mesh/polyMeshMath.f90 \
+        mesh/graph.f90 \
+        mesh/polyMeshMG.f90 \
         Cc.f90
 
 MG_SOURCE= ./mg/aratio.c \

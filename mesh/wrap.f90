@@ -78,10 +78,10 @@ module Wrap
       implicit none
     end subroutine close_mesh_api
 
-    subroutine finalize_mesh_api() bind(C)
+    subroutine free_mesh_api() bind(C)
       use iso_c_binding
       implicit none
-    end subroutine finalize_mesh_api
+    end subroutine free_mesh_api
 
     subroutine MGridGen_f90( nvtxs, xadj, vvol, vsurf,&
                              adjncy, adjwgt, minsize, maxsize,&

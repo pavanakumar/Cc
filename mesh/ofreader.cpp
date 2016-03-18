@@ -3,7 +3,7 @@
 /******************************************
    Opens the mesh
    1. Serial   if ipar != _enable_parallel
-   2/ Parallel if ipar == _enable_parallel
+   2. Parallel if ipar == _enable_parallel
 *******************************************/
 void init_mesh_api( int *ipar ) { 
   char *arg[] = 
@@ -19,13 +19,13 @@ void init_mesh_api( int *ipar ) {
 }
 
 /*************************************
-   Closes the mesh and cleares memory
+   Frees the mesh and cleares memory
    Note: This will not close the Time
    object, which will call MPI_Finalize
-   so use finalize_mesh_api() to do
+   so use close_mesh_api() to do
    complete clean up of API interface.
 ***************************************/
-void close_mesh_api() {
+void free_mesh_api() {
   delete global_of_mesh;
 }
 
@@ -35,7 +35,7 @@ void close_mesh_api() {
    object, which will call MPI_Finalize
    so use with caution.
 ***************************************/
-void finalize_mesh_api() {
+void close_mesh_api() {
   delete global_of_mesh;
 }
 
@@ -187,7 +187,7 @@ void check_metrics
 //  std::cerr << "Epsilon = " << std::numeric_limits<double>::epsilon() << "\n";
 //  std::cerr << "Round err  = " << std::numeric_limits<double>::round_error() << "\n";
   const double eps = 1.0e-10;//std::numeric_limits<double>::epsilon() * 10.0;
-#if 1
+#if 0
   Foam::Info << "Face normal\n";
   for( int i=0; i<*nface; ++i ) {
     Foam::Info << i << "  "
@@ -199,7 +199,7 @@ void check_metrics
                << dn[ i * 3 + 2 ] * fs[i] << "\n";
   }
 #endif
-#if 1
+#if 0
   for( int i=0; i<*ncell; ++i ) {
 #endif
 #if 0
@@ -219,13 +219,13 @@ void check_metrics
       }
     }
 #endif
-#if 1
+#if 0
     std::cout << "volume   " << i << " = " << cv[i] << "  " << global_of_mesh->mesh()->V()[i] << "\n";
     std::cout << "centroid " << i << " = " << cc[i*3] << "  " << cc[i*3+1] << "  " << cc[i*3+2] << "  "
               << global_of_mesh->mesh()->C()[i][0] << "  " << global_of_mesh->mesh()->C()[i][1] << "  "
               << global_of_mesh->mesh()->C()[i][2] << "\n";
-#endif
   }
+#endif
 }
 
 /************************************************************

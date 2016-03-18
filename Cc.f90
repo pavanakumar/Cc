@@ -1,6 +1,6 @@
 program Cc
   use Wrap
-  use Mesh
+  use PolyMeshMG
   use mpi
   implicit none
   integer, parameter :: nlevel = 3
@@ -9,6 +9,7 @@ program Cc
 
   !! Read the mesh and create coarse levels
   call create_mg_pm( nlevel, pm, ipar )
+
   !! Get the MPI rank if running in parallel
   if( ipar .eq. enable_parallel_ ) then
     call MPI_Comm_rank( MPI_COMM_WORLD, rank, ierr )
@@ -23,4 +24,3 @@ program Cc
   end do 
 
 end program Cc
-
