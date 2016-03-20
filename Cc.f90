@@ -1,26 +1,40 @@
-program Cc
-  use Wrap
+module Cc
+  use iso_c_binding
   use PolyMeshMG
-  use mpi
   implicit none
-  integer, parameter :: nlevel = 3
-  integer :: ipar = enable_parallel_ + 1, ierr, rank = 0, ilvl
-  type(polyMesh), dimension(nlevel) :: pm
+  type(polyMesh), allocatable :: pm(:)
 
-  !! Read the mesh and create coarse levels
-  call create_mg_pm( nlevel, pm, ipar )
+  contains
 
-  !! Get the MPI rank if running in parallel
-  if( ipar .eq. enable_parallel_ ) then
-    call MPI_Comm_rank( MPI_COMM_WORLD, rank, ierr )
-  end if
- 
-!  call tecio_write( rank, nlevel, pm(1:nlevel) )
-  !! Write the MG levels for each rank
-  do ilvl = nlevel, 1, -1
-    call write_pm_tecio( ilvl, rank, pm(ilvl)%nnode, pm(ilvl)%ncell,&
-                         pm(ilvl)%nface, pm(ilvl)%ninternalface,&
-                         pm(ilvl)%x, pm(ilvl)%facelr, pm(ilvl)%facenode )
-  end do 
+  !>
+  subroutine init_cc( parflag, nlevel ) bind (C)
+    implicit none
+    integer, intent(in) :: parflag, nlevel
+    !> Allocate the polymesh data-structure and read from API
+    allocate( pm(nlevel) )
+    call create_mg_pm( nlevel, pm, parflag )
 
-end program Cc
+  end subroutine init_cc
+
+  !> 
+  subroutine finalise_cc() bind(C)
+    implicit none
+    deallocate( pm )
+  end subroutine finalise_cc
+
+  !>
+  subroutine write_cc_mesh() bind(C)
+    use Wrap
+    implicit none
+    integer :: ilvl, nlevel, rank
+    nlevel = size(pm)
+    rank = 0
+    do ilvl = nlevel, 1, -1
+      call write_pm_tecio( ilvl, rank, pm(ilvl)%nnode, pm(ilvl)%ncell,&
+                           pm(ilvl)%nface, pm(ilvl)%ninternalface,&
+                           pm(ilvl)%x, pm(ilvl)%facelr, pm(ilvl)%facenode )
+    end do 
+  end subroutine write_cc_mesh
+
+end module Cc
+

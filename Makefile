@@ -56,10 +56,13 @@ MG_OBJECTS=$(patsubst %.c, %.o, $(MG_SOURCE))
 
 TECIO_OBJECTS=$(patsubst %.cpp, %.o, $(TECIO_SOURCE))
 
-all: Cc.x
+all: libCc.so
 
-Cc.x: $(OBJECTS) $(MG_OBJECTS) $(TECIO_OBJECTS)
-	$(FC) -fPIC -g $(OF_LDFLAGS) $(OBJECTS) $(MG_OBJECTS) $(TECIO_OBJECTS) -o Cc.x $(OF_LIBS) -lm
+libCc.so: $(OBJECTS) $(MG_OBJECTS) $(TECIO_OBJECTS)
+	$(FC) -fPIC -g -shared $(OF_LDFLAGS) $(OBJECTS) $(MG_OBJECTS) $(TECIO_OBJECTS) -o libCc.so $(OF_LIBS) -lm
+
+#Cc.x: libCc.so
+#	$(FC) -fPIC -g Cc.f90 $(OF_LDFLAGS) $(OBJECTS) $(MG_OBJECTS) $(TECIO_OBJECTS) -o Cc.x $(OF_LIBS) -lm -lCc
 
 %.o: %.f90
 	$(FC) -g -fPIC -fbounds-check -c -o $@ $<
