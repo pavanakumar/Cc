@@ -5,10 +5,10 @@ module PolyMeshConstant
   !> Constant 1/12 hard coded for quadrature
   real(kind=8), parameter :: oneby12_ = 0.08333333333333333333333333333333333333333d0
   !> Quadrature points (for cell-centroid calculation)
-  real(kind=8), parameter :: xi1_     = 0.78867513459481288225457439025097872782380d0
-  real(kind=8), parameter :: xi2_     = 0.21132486540518711774542560974902127217620d0
-  real(kind=8), parameter :: eta1_    = 0.78867513459481288225457439025097872782380d0
-  real(kind=8), parameter :: eta2_    = 0.21132486540518711774542560974902127217620d0
+  real(kind=8), parameter :: xi_      = 0.78867513459481288225457439025097872782380d0
+  real(kind=8), parameter :: eta_     = 0.21132486540518711774542560974902127217620d0
+  real(kind=8), parameter :: qxi_(4)  = (/ xi_, eta_, eta_, xi_ /)
+  real(kind=8), parameter :: qeta_(4) = (/ xi_, eta_, xi_, eta_ /)
   !>
   integer, parameter :: pstart_        = 1, &
                         psize_         = 2, &
@@ -35,6 +35,11 @@ module PolyMeshConstant
   integer, parameter :: max_cell_node_ = 8, &
                         max_cell_face_ = 6, &
                         max_cell_edge_ = 12
+  !>
+  integer, parameter :: face1_ = 1, &
+                        face2_ = 2, &
+                        face3_ = 3, &
+                        face4_ = 4
   !>
   integer, parameter :: enable_parallel_ = 1
 end module PolyMeshConstant

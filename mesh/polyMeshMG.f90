@@ -21,6 +21,7 @@ module PolyMeshMG
     !> Connecivity/Topology
     integer, allocatable :: facelr(:,:),    &
                             cellface(:,:),  &
+                            nfacenode(:),   &
                             facenode(:,:),  &
                             edgenode(:,:),  &
                             cellnode(:,:),  &
@@ -89,7 +90,8 @@ module PolyMeshMG
     call get_pm_nodes( pm(nlevel)%nnode, pm(nlevel)%x )
     !> Read faces
     call get_pm_faces( pm(nlevel)%nface, pm(nlevel)%ninternalface, &
-                       pm(nlevel)%facelr, pm(nlevel)%facenode )
+                       pm(nlevel)%nfacenode, pm(nlevel)%facenode, &
+                       pm(nlevel)%facelr )
     !> Read edges
     call get_pm_edges( pm(nlevel)%nedge, pm(nlevel)%edgenode ) 
     !> Boundary condition data
@@ -175,15 +177,17 @@ module PolyMeshMG
     !> Copy temp face data to coarse mesh
     do iface = 1, pmf%ninternalface
       if( tmplr(lcell_, iface) .ne. tmplr(rcell_, iface) ) then
-        ninternalface = ninternalface + 1
-        pmc%facelr(:, ninternalface)   = tmplr(:, iface)
-        pmc%facenode(:, ninternalface) = pmf%facenode(:, iface)
+        ninternalface                   = ninternalface + 1
+        pmc%facelr(:, ninternalface)    = tmplr(:, iface)
+        pmc%nfacenode(ninternalface)    = pmf%nfacenode(iface)
+        pmc%facenode(:, ninternalface)  = pmf%facenode(:, iface)
       end if
     end do
     !> Boundary faces
     do iface = pmf%ninternalface + 1, pmf%nface
-      ninternalface = ninternalface + 1
+      ninternalface                  = ninternalface + 1
       pmc%facelr(:, ninternalface)   = tmplr(:, iface)
+      pmc%nfacenode(ninternalface)   = pmf%nfacenode(iface)
       pmc%facenode(:, ninternalface) = pmf%facenode(:, iface)
     end do
     !> Assign node pointer
@@ -222,7 +226,8 @@ module PolyMeshMG
     type(polyMesh), intent(inout) :: pm
     !> Connectivity
     allocate( pm%facelr( lr_, pm%nface ) )
-    allocate( pm%facenode( quadp1_, pm%nface ) )
+    allocate( pm%nfacenode( pm%nface ) )
+    allocate( pm%facenode( quad_, pm%nface ) )
     allocate( pm%edgenode( lr_, pm%nedge ) )
     allocate( pm%celltype( pm%ncell ) )
     allocate( pm%cellnode( max_cell_node_, pm%ncell ), &

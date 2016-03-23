@@ -17,37 +17,25 @@ module PolyMeshMath
   end function cross_prod
 
   !> Ruled face position vector
-  pure function r_ruled(r1, r2, r3, r4, xi, eta) result(ret)
+  pure function r_ruled(r, xi, eta) result(ret)
     implicit none
-    real(kind=8),dimension(dim_),intent(in) :: r1, r2, r3, r4
-    real(kind=8), intent(in)                :: eta, xi
-    real(kind=8),dimension(dim_)            :: ret
-    ret = ( r1 * ( 1.0d0 - xi ) + r2 * xi ) * ( 1.0d0 - eta ) + &
-          ( r4 * ( 1.0d0 - xi ) + r3 * xi ) * eta
+    real(kind=8), intent(in) :: r(dim_, quad_)
+    real(kind=8), intent(in) :: xi, eta
+    real(kind=8)             :: ret(dim_)
+    ret = ( r(:, 1) * ( 1.0d0 - xi ) + r(:, 2) * xi ) * ( 1.0d0 - eta ) + &
+          ( r(:, 4) * ( 1.0d0 - xi ) + r(:, 3) * xi ) * eta
   end function r_ruled
 
   !> Ruled face area element
-  pure function dS_ruled(r1, r2, r3, r4, xi, eta) result(ret)
+  pure function dS_ruled(r, xi, eta) result(ret)
     implicit none
-    real(kind=8),dimension(dim_),intent(in) :: r1, r2, r3, r4
-    real(kind=8), intent(in)                :: eta, xi
-    real(kind=8),dimension(dim_)            :: ret, temp1, temp2
-    temp1   = (r2 - r1) * ( 1.0d0 - eta ) + (r3 - r4) * eta
-    temp2   = (r4 - r1) * ( 1.0d0 - xi  ) + (r3 - r2) * xi
+    real(kind=8), intent(in)      :: r(dim_, quad_)
+    real(kind=8), intent(in)      :: eta, xi
+    real(kind=8), dimension(dim_) :: ret, temp1, temp2
+    temp1   = (r(:,2) - r(:,1)) * ( 1.0d0 - eta ) + (r(:,3) - r(:,4)) * eta
+    temp2   = (r(:,4) - r(:,1)) * ( 1.0d0 - xi  ) + (r(:,3) - r(:,2)) * xi
     ret     = cross_prod( temp1, temp2 )
   end function dS_ruled
-
-  !> Ruled face contribution to centroid
-  pure function cc_ruled(r1, r2, r3, r4, xi, eta) result(ret)
-    implicit none
-    real(kind=8),dimension(dim_),intent(in) :: r1, r2, r3, r4
-    real(kind=8), intent(in)                :: eta, xi
-    real(kind=8),dimension(dim_)            :: temp, ret
-    real(kind=8)                            :: temp_dot
-    temp      = r_ruled(r1, r2, r3, r4, xi, eta)
-    temp_dot  = sum( temp * temp )
-    ret       = temp_dot * dS_ruled(r1, r2, r3, r4, xi, eta)
-  end function cc_ruled
 
   !> The mesh metrics inner loop
   subroutine poly_metrics_loop( &
@@ -57,33 +45,40 @@ module PolyMeshMath
     !> Function arguements
     integer, intent(in)         :: iface, nnode, nface, ninternalface, ncell
     real(kind=8), intent(in)    :: x(dim_, nnode)
-    integer, intent(in)         :: facelr(lr_, nface), facenode(quadp1_, nface)
+    integer, intent(in)         :: facelr(lr_, nface), facenode(quad_, nface)
     real(kind=8), intent(out)   :: dn(dim_, nface), fs(nface), fc(dim_, nface)
     real(kind=8), intent(out)   :: fvol, fvolc(dim_)
     !> Local variables
-    integer                     :: il, ir
-    real(kind=8)                :: r1(dim_), r2(dim_), r3(dim_), r4(dim_)
+    integer                     :: il, ir, iqdr
+    real(kind=8)                :: rpos(dim_, quad_), & ! Position vectors
+                                   rqdr( dim_),       & ! Quadrature position vector
+                                   dSqdr(dim_),       & ! Quadrature dS
+                                   magdSqdr             ! |dS|
+    !> Init face values to zero
+    dn(:,iface) = 0.0d0
+    fc(:,iface) = 0.0d0
+    fvol  = 0.0d0
+    fvolc = 0.0d0
     !> Face metric calculation
-    r1 = x(:, facenode( 2, iface ))
-    r2 = x(:, facenode( 3, iface ))
-    r3 = x(:, facenode( 4, iface ))
-    r4 = x(:, facenode( 5, iface ))
-    il = facelr( lcell_, iface)
-    ir = facelr( rcell_, iface)
-    !> Face centroid
-    fc(:, iface) = 0.250d0 * ( r1 + r2 + r3 + r4 )
-    !> Face normal and area
-    dn(:, iface) = 0.50d0 * cross_prod( (r3 - r1), (r4 - r2) )
-    fs(iface)    = sqrt( sum( dn(:, iface) * dn(:, iface) ) )
-    dn(:, iface) = dn(:, iface) / fs(iface)
-    !> Face volume contribution
-    fvol         = oneby12_ * sum( ( r1 + r2 )  * cross_prod(  (r2 + r3), (r3 + r4) ) )
-    !> Face cell centroid contribution (Gauss quadrture)
-    fvolc        = 0.250d0 * ( cc_ruled(r1, r2, r3, r4, xi1_, eta1_) + &
-                               cc_ruled(r1, r2, r3, r4, xi1_, eta2_) + &
-                               cc_ruled(r1, r2, r3, r4, xi2_, eta1_) + &
-                               cc_ruled(r1, r2, r3, r4, xi2_, eta2_) ) 
-  end subroutine poly_metrics_loop
+    rpos = x(:, facenode( face1_:face4_, iface ))
+    il   = facelr(lcell_, iface)
+    ir   = facelr(rcell_, iface)
+    !> Obtain the quadrature point values
+    do iqdr = 1, 4
+      rqdr        = r_ruled(  rpos, qxi_(iqdr), qeta_(iqdr) )
+      dSqdr       = dS_ruled( rpos, qxi_(iqdr), qeta_(iqdr) )
+      magdSqdr    = sqrt( sum( dSqdr * dSqdr ) )
+      dn(:,iface) = dn(:,iface) + dSqdr
+      fc(:,iface) = fc(:,iface) + rqdr * magdSqdr
+      fvol        = fvol  + sum( rqdr * dSqdr )
+      fvolc       = fvolc + sum( rqdr * rqdr ) * dSqdr
+    end do
+    !> Multiply by quadrature weights and scale factor
+    dn(:,iface)   = 0.250d0  * dn(:,iface)
+    fs(iface)     = sqrt( sum( dn(:,iface) * dn(:,iface) ) )
+    dn(:,iface)   = dn(:,iface) / fs(iface)
+    fc(:,iface)   = 0.250d0  * fc(:,iface) / fs(iface)
+ end subroutine poly_metrics_loop
 
  
   !> Calculate the mesh metrics
@@ -98,7 +93,7 @@ module PolyMeshMath
     implicit none
     integer, intent(in)         :: nnode, nface, ninternalface, ncell
     real(kind=8), intent(in)    :: x(dim_, nnode)
-    integer, intent(in)         :: facelr(lr_, nface), facenode(quadp1_, nface)
+    integer, intent(in)         :: facelr(lr_, nface), facenode(quad_, nface)
     real(kind=8), intent(out)   :: cv(ncell), cc(dim_, ncell)
     real(kind=8), intent(out)   :: dn(dim_, nface), fs(nface), fc(dim_, nface)
     !> Local variables
@@ -110,8 +105,8 @@ module PolyMeshMath
     do iface = 1, ninternalface
       call poly_metrics_loop( iface, nnode, nface, ninternalface, ncell, &
                               x, facelr, facenode, dn, fs, fc, fvol, fvolc )
-      il = facelr( lcell_, iface)
-      ir = facelr( rcell_, iface)
+      il = facelr(lcell_, iface)
+      ir = facelr(rcell_, iface)
       !> Add CC/CV contribution of internal face
       cv(il)       = cv(il)   + fvol
       cv(ir)       = cv(ir)   - fvol

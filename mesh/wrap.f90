@@ -27,10 +27,13 @@ module Wrap
       real(kind=c_double), dimension(*) :: x
     end subroutine get_pm_nodes
 
-    subroutine get_pm_faces( nface, ninternalface, facelr, facenode ) bind(C)
+    subroutine get_pm_faces( nface, ninternalface, &
+                             nfacenode, facenode, &
+                             facelr ) bind(C)
       use iso_c_binding
       implicit none
-      integer(kind=c_int) :: nface, ninternalface
+      integer(kind=c_int)               :: nface, ninternalface
+      integer(kind=c_int), dimension(*) :: nfacenode
       integer(kind=c_int), dimension(*) :: facelr, facenode
     end subroutine get_pm_faces
 

@@ -69,26 +69,29 @@ void get_pm_nodes( int *nnode, double *x ) {
   Read faces from mesh and pass it to Cc
 ******************************************/
 void get_pm_faces( int *nface, int *ninternalface,
-                   int *facelr, int *facenode ) {
+                   int *nfacenode, int *facenode
+                   int *facelr ) {
   int size = 0, right;
+  const int _quad = 4, _left = 0, _right = 1;
   ///// Form facenode
   for( int i = 0; i < *nface; ++i ) {
     size = global_of_mesh->mesh()->faces()[i].size();
-    facenode[ i * 5 + 0 ] = size;
+    nfacenode[i] = size;
     /// Face nodes loop
-    for( int j = 1; j <= size; ++j )
-      facenode[ i * 5 + j ] = global_of_mesh->mesh()->faces()[i][ j - 1 ] + 1; // +1 FORTRAN indexing
+    for( int j = 0; j < size; ++j )
+      facenode[ i * _quad + j ] = global_of_mesh->mesh()->faces()[i][j] + 1; // +1 FORTRAN indexing
+    ///// Fix facenode for planar faces     0   1   2   3
+    ///// (last node repeats (for example) [13, 22, 37, 37]
+    if( size == 3 ) // Planar face
+      facenode[ i * _quad + _quad - 1 ] = facenode[ i * _quad + _quad - 2 ];
     /// Face L/R
-    if( i < *ninternalface ) right = global_of_mesh->mesh()->faceNeighbour()[i] + 1; // +1 FORTRAN indexing
-    else right = 0; // Error
-    facelr[ i * 2 + 0 ] = global_of_mesh->mesh()->faceOwner()[i] + 1; // +1 FORTRAN indexing
-    facelr[ i * 2 + 1 ] = right;
+    if( i < *ninternalface )
+      right = global_of_mesh->mesh()->faceNeighbour()[i] + 1; // +1 FORTRAN indexing
+    else
+      right = 0; // The right face for a boundary is an invalid index
+    facelr[ i * 2 + _left  ] = global_of_mesh->mesh()->faceOwner()[i] + 1; // +1 FORTRAN indexing
+    facelr[ i * 2 + _right ] = right;
   }
-  ///// Fix facenode for planar faces     0   1   2   3   4
-  ///// (last node repeats (for example) [3, 13, 22, 37, 37]
-  for( int i = 0; i < *nface; ++i )
-    if( facenode[ i * 5 + 0 ] == 3 ) // Planar face
-      facenode[ i * 5 + 4 ] = facenode[ i * 5 + 3 ];
 }
 
 /************************************************************
