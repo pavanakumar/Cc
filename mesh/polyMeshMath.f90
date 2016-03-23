@@ -77,7 +77,7 @@ module PolyMeshMath
     dn(:,iface)   = 0.250d0  * dn(:,iface)
     fs(iface)     = sqrt( sum( dn(:,iface) * dn(:,iface) ) )
     dn(:,iface)   = dn(:,iface) / fs(iface)
-    fc(:,iface)   = 0.250d0  * fc(:,iface) / fs(iface)
+    fc(:,iface)   = fc(:,iface) / fs(iface)
  end subroutine poly_metrics_loop
 
  
@@ -124,6 +124,7 @@ module PolyMeshMath
     end do
     !> Do cell summation
     do icell = 1, ncell
+      cv(icell)    = oneby3_ * cv(icell)
       cc(:,icell)  = 0.50d0 * cc(:,icell) / cv(icell)
     end do
   end subroutine poly_metrics
