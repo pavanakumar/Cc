@@ -55,14 +55,14 @@ module PolyMeshMath
                                    dSqdr(dim_),       & ! Quadrature dS
                                    magdSqdr             ! |dS|
     !> Init face values to zero
-    dn(:,iface) = 0.0d0
-    fc(:,iface) = 0.0d0
-    fvol  = 0.0d0
-    fvolc = 0.0d0
+    dn(:, iface)  = 0.0d0
+    fc(:, iface)  = 0.0d0
+    fvol          = 0.0d0
+    fvolc         = 0.0d0
     !> Face metric calculation
-    rpos = x(:, facenode( face1_:face4_, iface ))
-    il   = facelr(lcell_, iface)
-    ir   = facelr(rcell_, iface)
+    rpos          = x(:, facenode( face1_:face4_, iface ))
+    il            = facelr(lcell_, iface)
+    ir            = facelr(rcell_, iface)
     !> Obtain the quadrature point values
     do iqdr = 1, 4
       rqdr        = r_ruled(  rpos, qxi_(iqdr), qeta_(iqdr) )
@@ -77,7 +77,8 @@ module PolyMeshMath
     dn(:,iface)   = 0.250d0  * dn(:,iface)
     fs(iface)     = sqrt( sum( dn(:,iface) * dn(:,iface) ) )
     dn(:,iface)   = dn(:,iface) / fs(iface)
-    fc(:,iface)   = fc(:,iface) / fs(iface)
+    fc(:,iface)   = 0.250d0 * fc(:,iface) / fs(iface)
+
  end subroutine poly_metrics_loop
 
  
@@ -124,8 +125,8 @@ module PolyMeshMath
     end do
     !> Do cell summation
     do icell = 1, ncell
-      cv(icell)    = oneby3_ * cv(icell)
-      cc(:,icell)  = 0.50d0 * cc(:,icell) / cv(icell)
+      cv(icell)    = oneby12_ * cv(icell)
+      cc(:,icell)  = 0.1250d0 * cc(:,icell) / cv(icell)
     end do
   end subroutine poly_metrics
 

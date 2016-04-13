@@ -69,7 +69,7 @@ void get_pm_nodes( int *nnode, double *x ) {
   Read faces from mesh and pass it to Cc
 ******************************************/
 void get_pm_faces( int *nface, int *ninternalface,
-                   int *nfacenode, int *facenode
+                   int *nfacenode, int *facenode,
                    int *facelr ) {
   int size = 0, right;
   const int _quad = 4, _left = 0, _right = 1;
@@ -202,16 +202,15 @@ void check_metrics
                << dn[ i * 3 + 2 ] * fs[i] << "\n";
   }
 #endif
-#if 0
+#if 1
   for( int i=0; i<*ncell; ++i ) {
-#endif
-#if 0
     double cv_chk = std::abs( (cv[i] - global_of_mesh->mesh()->V()[i]) / cv[i] );
     if( cv_chk > eps ) {
       Foam::Info << "volume error  " << i << " = " << cv_chk << "\n";
-//      Foam::Info << "Error: Metrics not calculated correctly (cell volume) : "
-//                 << cv_chk << "\n";
+      Foam::Info << "Error: Metrics not calculated correctly (cell volume) : "
+                 << cv_chk << "  " << cv[i] << " != " << global_of_mesh->mesh()->V()[i] << "\n";
     }
+  }
 #endif
 #if 0
     for( int j=0; j<3; ++j ) {

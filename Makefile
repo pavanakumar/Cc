@@ -85,13 +85,12 @@ distclean: clean
 	-@rm -f make.of.inc
 	-@rm -f Cc
 	-@rm -f Cc.x
+	-@rm -rf libCc.so*
 	-@rm -rf mesh/Make mesh/lnInclude
 	-@rm -rf libCc_ofreader*
 	-@rm -rf Cc.x.*
 	-@rm -f ./mesh/*.dep
 	-@rm -rf ./lua
-	cd luaposix && $(MAKE) distclean
 	cd luajit-2.0 && $(MAKE) clean
-	cd luajit-2.0 && git reset --hard
 	cd luajit-2.0 && rm -f Makefile.old
 

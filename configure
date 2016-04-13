@@ -71,7 +71,7 @@ if [ "$OPENFOAM_ROOT" ]; then
     cd $OF_SRC_DIR
     wclean; wmake
     install_luajit
-    install_luaposix
+
   else
     echo "The OpenFOAM bashrc script does not exist at $OPENFOAM_ROOT/etc/bashrc"
     echo "Check the path set in OPENFOAM_ROOT"

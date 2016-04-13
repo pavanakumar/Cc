@@ -3,6 +3,8 @@ module PolyMeshConstant
   use iso_c_binding
   implicit none
   !> Constant 1/3 hard coded for quadrature
+
+  real(kind=8), parameter :: oneby12_ = 0.08333333333333333333333333333333333333333d0
   real(kind=8), parameter :: oneby3_  = 0.33333333333333333333333333333333333333333d0
   !> Quadrature points (for cell-centroid calculation)
   real(kind=8), parameter :: xi_      = 0.78867513459481288225457439025097872782380d0
