@@ -143,6 +143,8 @@ void get_pm_patches( int *npatch, int *patchdata ) {
         patchdata[ i * 4 + 2 ] = _outlet_bc;
       }else if( physicalTypes[i] == "symmetry" ) {
         patchdata[ i * 4 + 2 ] = _symmetry_bc;
+      }else if( physicalTypes[i] == "wall" ) {
+        patchdata[ i * 4 + 2 ] = _wall_bc;
       }else if( basicTypes[i] == "empty" ) {
         patchdata[ i * 4 + 2 ] = _empty_bc;
       }else {
@@ -190,16 +192,16 @@ void check_metrics
 //  std::cerr << "Epsilon = " << std::numeric_limits<double>::epsilon() << "\n";
 //  std::cerr << "Round err  = " << std::numeric_limits<double>::round_error() << "\n";
   const double eps = 1.0e-10;//std::numeric_limits<double>::epsilon() * 10.0;
-#if 0
+#if 1
   Foam::Info << "Face normal\n";
   for( int i=0; i<*nface; ++i ) {
-    Foam::Info << i << "  "
-               << global_of_mesh->mesh()->Sf()[i][0] << "  "
-               << global_of_mesh->mesh()->Sf()[i][1] << "  "
-               << global_of_mesh->mesh()->Sf()[i][2] << "  "
-               << dn[ i * 3 + 0 ] * fs[i] << "  "
-               << dn[ i * 3 + 1 ] * fs[i] << "  "
-               << dn[ i * 3 + 2 ] * fs[i] << "\n";
+    for( int j=0; j<3; ++j ) {
+      double cv_chk = std::abs( global_of_mesh->mesh()->Sf()[i][j] - dn[ i * 3 + j ] * fs[i] );
+      if( cv_chk > eps )
+        Foam::Info << "Error: Metrics not calculated correctly (face normal) : "
+                   << cv_chk << "  " << global_of_mesh->mesh()->Sf()[i][j] << " != "
+                   << dn[ i * 3 + j ] * fs[i] << "\n";
+    }
   }
 #endif
 #if 1
@@ -210,9 +212,8 @@ void check_metrics
       Foam::Info << "Error: Metrics not calculated correctly (cell volume) : "
                  << cv_chk << "  " << cv[i] << " != " << global_of_mesh->mesh()->V()[i] << "\n";
     }
-  }
 #endif
-#if 0
+#if 1
     for( int j=0; j<3; ++j ) {
       cv_chk = std::abs( (cc[i * 3 + j] - global_of_mesh->mesh()->C()[i][j]) );// / cc[i * 3 + j] );
       if( cv_chk > eps ) {
@@ -220,12 +221,6 @@ void check_metrics
                    << cv_chk << " " << cc[i * 3 + j]  << "\n";
       }
     }
-#endif
-#if 0
-    std::cout << "volume   " << i << " = " << cv[i] << "  " << global_of_mesh->mesh()->V()[i] << "\n";
-    std::cout << "centroid " << i << " = " << cc[i*3] << "  " << cc[i*3+1] << "  " << cc[i*3+2] << "  "
-              << global_of_mesh->mesh()->C()[i][0] << "  " << global_of_mesh->mesh()->C()[i][1] << "  "
-              << global_of_mesh->mesh()->C()[i][2] << "\n";
   }
 #endif
 }
@@ -309,6 +304,56 @@ void get_pm_extra( int *ncell, int *celltype, int *cellnode,
     else if( model == wedge )    celltype[cellI] = 5;
     else if( model == tetWedge ) celltype[cellI] = 6;
     else                         celltype[cellI] = 0;
+  }
+}
+
+/************************************************************************
+   Get the size of shared nodes used in the MPI communication 
+   nprocs    : Total number of processor sharing node with the current
+               processor rank
+   nxadj     : The size of the CRS communication matrix xadj array
+   nadjncy   : The size of the CRS communication matrix adjncy array
+   nsnlist   : The size of total number of shared node list
+   nngid     : The size of the global ID list of local nodes
+***********************************************************************/
+void get_pm_shared_node_size
+(
+  int *nprocs, int *nxadj,
+  int *nadjncy, int *nsnlist
+){
+  *nprocs  = global_of_mesh->proc_list().size();
+  *nxadj   = global_of_mesh->proc_xadj().size();
+  *nadjncy = global_of_mesh->proc_adjncy().size();
+  *nsnlist = global_of_mesh->proc_snlist().size();
+}
+
+/************************************************************************
+   Get the size of shared nodes used in the MPI communication 
+   procs    : The list of processor rank sharing node with the current
+              processor rank
+   xadj     : The contents of the CRS communication matrix xadj array
+   adjncy   : The contents of the CRS communication matrix adjncy array
+   snlist   : The contents of total number of shared node list
+   ngid     : The contents of the global ID list of local nodes
+***********************************************************************/
+void get_pm_shared_node_shed
+(
+  int *procs, int *xadj,
+  int *adjncy, int *snlist
+){
+  for( size_t i = 0; i < global_of_mesh->proc_list().size(); ++i )
+    procs[i] = global_of_mesh->proc_list()[i];
+  for( size_t i = 0; i < global_of_mesh->proc_xadj().size(); ++i )
+    xadj[i] = global_of_mesh->proc_xadj()[i];
+  for( size_t i = 0; i < global_of_mesh->proc_adjncy().size(); ++i )
+    adjncy[i] = global_of_mesh->proc_adjncy()[i];
+  {
+    size_t i;
+    auto iter = global_of_mesh->proc_snlist().begin();
+    for( i = 0, iter = global_of_mesh->proc_snlist().begin();
+         iter != global_of_mesh->proc_snlist().end();
+         ++i, ++iter )
+      snlist[i] = *iter;
   }
 }
 
