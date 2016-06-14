@@ -18,6 +18,11 @@ module PolyMeshMG
                ilevel        = 0, &
                nlevel        = 0, &
                nmgpart       = 0
+    !> Sizes MPI node based (Node based)
+    integer :: mpi_nod_nxadj   = 0, &
+               mpi_nod_nadjncy = 0, &
+               mpi_nod_nproc   = 0, &
+               mpi_nod_nsnlist = 0
     !> Connecivity/Topology
     integer, allocatable :: facelr(:,:),    &
                             cellface(:,:),  &
@@ -41,6 +46,11 @@ module PolyMeshMG
                                  dn(:,:), & ! Face unit normal
                                  fc(:,:), & ! Face centroid
                                  fs(:)      ! Face area
+    !> Node based MPI schedule
+    integer, allocatable :: mpi_nod_xadj(:),   &
+                            mpi_nod_adjncy(:), &
+                            mpi_nod_proc(:),   &
+                            mpi_nod_snlist(:)
   end type polyMesh
 
   contains
