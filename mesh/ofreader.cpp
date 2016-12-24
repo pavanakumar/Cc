@@ -60,7 +60,7 @@ void get_pm_sizes( int *nnode, int *nface, int *ninternalface,
 void get_pm_nodes( int *nnode, double *x ) {
   for( int i = 0; i < *nnode; ++i ) {
     for( int j = 0; j < 3; ++j ) {
-      x[ i * 3 + j ] = global_of_mesh->mesh()->points()[i][j];
+      x[ j * (*nnode) + i ] = global_of_mesh->mesh()->points()[i][j];
     }
   }
 }
@@ -79,18 +79,18 @@ void get_pm_faces( int *nface, int *ninternalface,
     nfacenode[i] = size;
     /// Face nodes loop
     for( int j = 0; j < size; ++j )
-      facenode[ i * _quad + j ] = global_of_mesh->mesh()->faces()[i][j] + 1; // +1 FORTRAN indexing
+      facenode[ j * (*nface) + i ] = global_of_mesh->mesh()->faces()[i][j] + 1; // +1 FORTRAN indexing
     ///// Fix facenode for planar faces     0   1   2   3
     ///// (last node repeats (for example) [13, 22, 37, 37]
     if( size == 3 ) // Planar face
-      facenode[ i * _quad + _quad - 1 ] = facenode[ i * _quad + _quad - 2 ];
+      facenode[ (_quad - 1) * (*nface) + i ] = facenode[ _quad * (*nface) + i ];
     /// Face L/R
     if( i < *ninternalface )
       right = global_of_mesh->mesh()->faceNeighbour()[i] + 1; // +1 FORTRAN indexing
     else
       right = 0; // The right face for a boundary is an invalid index
-    facelr[ i * 2 + _left  ] = global_of_mesh->mesh()->faceOwner()[i] + 1; // +1 FORTRAN indexing
-    facelr[ i * 2 + _right ] = right;
+    facelr[ i ] = global_of_mesh->mesh()->faceOwner()[i] + 1; // +1 FORTRAN indexing
+    facelr[ *nface_ + i ] = right;
   }
 }
 
@@ -100,8 +100,8 @@ void get_pm_faces( int *nface, int *ninternalface,
 void get_pm_edges( int *nedge, int *edgenode ) {
   const Foam::edgeList &edgL = global_of_mesh->mesh()->edges();
   for( int i = 0; i < *nedge; ++i ) {
-    edgenode[ i * 2 + 0 ] = edgL[i][0] + 1;  /* +1 FORTRAN indexing */
-    edgenode[ i * 2 + 1 ] = edgL[i][1] + 1; /* +1 FORTRAN indexing */
+    edgenode[i] = edgL[i][0] + 1;  /* +1 FORTRAN indexing */
+    edgenode[*nedge + i] = edgL[i][1] + 1; /* +1 FORTRAN indexing */
   }
 }
 
@@ -124,29 +124,29 @@ void get_pm_patches( int *npatch, int *patchdata ) {
     Foam::word patchName =
           global_of_mesh->mesh()->boundaryMesh()[i].name(); 
     //// Fix the patch values
-    patchdata[ i * 4 + 0 ] = global_of_mesh->mesh()->boundaryMesh()[i].start() + 1; // +1 FORTRAN indexing
-    patchdata[ i * 4 + 1 ] = global_of_mesh->mesh()->boundaryMesh()[i].size();
-    patchdata[ i * 4 + 3 ] = 0; // Default value is 0 for processor neighbour
+    patchdata[i] = global_of_mesh->mesh()->boundaryMesh()[i].start() + 1; // +1 FORTRAN indexing
+    patchdata[*npatch + i] = global_of_mesh->mesh()->boundaryMesh()[i].size();
+    patchdata[3 * (*npatch) + i] = 0; // Default value is 0 for processor neighbour
     ////  BC type  /////
     if( basicTypes[i] == "wall" )
-      patchdata[ i * 4 + 2 ] = _wall_bc;
+      patchdata[2 * (*npatch) + i] = _wall_bc;
     else if( basicTypes[i] == "symmetryPlane" )
-      patchdata[ i * 4 + 2 ] = _symmetry_bc;
+      patchdata[2 * (*npatch) + i] = _symmetry_bc;
     else if( basicTypes[i] == "empty" )
-      patchdata[ i * 4 + 2 ] = _empty_bc;
+      patchdata[2 * (*npatch) + i] = _empty_bc;
     else if( basicTypes[i] == "patch" ) {  /// specially treat inlet/outlet/riemann
       if( physicalTypes[i] == "riemann" ) {
-        patchdata[ i * 4 + 2 ] = _riemann_bc;
+        patchdata[2 * (*npatch) + i] = _riemann_bc;
       }else if( physicalTypes[i] == "inlet" ) {
-        patchdata[ i * 4 + 2 ] = _inlet_bc;
+        patchdata[2 * (*npatch) + i] = _inlet_bc;
       }else if( physicalTypes[i] == "outlet" ) {
-        patchdata[ i * 4 + 2 ] = _outlet_bc;
+        patchdata[2 * (*npatch) + i] = _outlet_bc;
       }else if( physicalTypes[i] == "symmetry" ) {
-        patchdata[ i * 4 + 2 ] = _symmetry_bc;
+        patchdata[2 * (*npatch) + i] = _symmetry_bc;
       }else if( physicalTypes[i] == "wall" ) {
-        patchdata[ i * 4 + 2 ] = _wall_bc;
+        patchdata[2 * (*npatch) + i] = _wall_bc;
       }else if( basicTypes[i] == "empty" ) {
-        patchdata[ i * 4 + 2 ] = _empty_bc;
+        patchdata[2 * (*npatch) + i] = _empty_bc;
       }else {
         Foam::Info << "Unknown physical patch type \"" << physicalTypes[i] << "\"\n";
         if( physicalTypes[i] == "" )
@@ -157,7 +157,7 @@ void get_pm_patches( int *npatch, int *patchdata ) {
       }
     }
     else if( basicTypes[i] == "processor" ) {
-      patchdata[ i * 4 + 2 ] = _processor_bc;
+      patchdata[2 * (*npatch) + i] = _processor_bc;
       processorPolyPatch &myProcPatch = 
         const_cast<processorPolyPatch &>
         (
@@ -165,7 +165,7 @@ void get_pm_patches( int *npatch, int *patchdata ) {
             ( global_of_mesh->mesh()->boundaryMesh()[i] )
         );
       /////  Neighbour processor number
-      patchdata[ i * 4 + 3 ] = myProcPatch.neighbProcNo();
+      patchdata[3 * (*npatch) + i] = myProcPatch.neighbProcNo();
     }
     else {
       Foam::Info << "Unsupported bc type " << basicTypes[i] << "\n";
@@ -284,12 +284,12 @@ void get_pm_extra( int *ncell, int *celltype, int *cellnode,
     /// Easy access
     const cellModel& model = cellShapes[cellI].model();
     const labelList edges = cellShapes[cellI].meshEdges
-                             ( global_of_mesh->mesh()->edges(), 
+                             ( global_of_mesh->mesh()->edges(),
                                global_of_mesh->mesh()->cellEdges()[cellI] );
     const labelList faces  = cellShapes[cellI].meshFaces
                              ( global_of_mesh->mesh()->faces(),
                                global_of_mesh->mesh()->cells()[cellI] );
-    /// 
+    ///
     for( int i = 0; i < cellShapes[cellI].size(); ++i )
       cellnode[ cellI * MAX_CELL_NODE + i] = cellShapes[cellI][i] + 1; // +1 for FORTRAN indexing
     for( int i = 0; i < faces.size(); ++i )

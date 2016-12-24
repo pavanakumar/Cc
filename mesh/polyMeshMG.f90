@@ -161,13 +161,13 @@ module PolyMeshMG
     pmc%ilevel = pmf%ilevel - 1
     pmc%nlevel = pmf%nlevel
     !> Find unique internal faces in coarse mesh
-    allocate(tmplr(lr_, pmf%nface))
+    allocate(tmplr(pmf%nface, lr_))
     ninternalface = 0
     do iface = 1, pmf%nface
-      tmplr(lcell_, iface) = pmf%mgpart(pmf%facelr(lcell_, iface)) + 1
+      tmplr(lcell_, iface) = pmf%mgpart(pmf%facelr(iface, lcell_)) + 1
       if( iface .le. pmf%ninternalface ) then
-        tmplr(rcell_, iface) = pmf%mgpart(pmf%facelr(rcell_, iface)) + 1
-        if( tmplr(lcell_, iface) .ne. tmplr(rcell_, iface) ) then
+        tmplr(iface, rcell_) = pmf%mgpart(pmf%facelr(iface, rcell_)) + 1
+        if( tmplr(iface, rcell_) .ne. tmplr(iface, rcell_) ) then
           ninternalface = ninternalface + 1
         end if
       end if
@@ -188,17 +188,17 @@ module PolyMeshMG
     do iface = 1, pmf%ninternalface
       if( tmplr(lcell_, iface) .ne. tmplr(rcell_, iface) ) then
         ninternalface                   = ninternalface + 1
-        pmc%facelr(:, ninternalface)    = tmplr(:, iface)
+        pmc%facelr(ninternalface, :)    = tmplr(iface, :)
         pmc%nfacenode(ninternalface)    = pmf%nfacenode(iface)
-        pmc%facenode(:, ninternalface)  = pmf%facenode(:, iface)
+        pmc%facenode(ninternalface, :)  = pmf%facenode(iface, :)
       end if
     end do
     !> Boundary faces
     do iface = pmf%ninternalface + 1, pmf%nface
       ninternalface                  = ninternalface + 1
-      pmc%facelr(:, ninternalface)   = tmplr(:, iface)
+      pmc%facelr(ninternalface, :)   = tmplr(iface, :)
       pmc%nfacenode(ninternalface)   = pmf%nfacenode(iface)
-      pmc%facenode(:, ninternalface) = pmf%facenode(:, iface)
+      pmc%facenode(ninternalface, :) = pmf%facenode(iface, :)
     end do
     !> Assign node pointer
     pmc%x         => pmf%x
@@ -235,27 +235,27 @@ module PolyMeshMG
     implicit none
     type(polyMesh), intent(inout) :: pm
     !> Connectivity
-    allocate( pm%facelr( lr_, pm%nface ) )
+    allocate( pm%facelr( pm%nface, lr_ ) )
     allocate( pm%nfacenode( pm%nface ) )
-    allocate( pm%facenode( quad_, pm%nface ) )
-    allocate( pm%edgenode( lr_, pm%nedge ) )
+    allocate( pm%facenode( pm%nface, quad_ ) )
+    allocate( pm%edgenode( pm%nedge, lr_ ) )
     allocate( pm%celltype( pm%ncell ) )
     allocate( pm%cellnode( max_cell_node_, pm%ncell ), &
               pm%cellface( max_cell_face_, pm%ncell ), &
               pm%celledge( max_cell_edge_, pm%ncell ) )
     !> Metrics
-    allocate( pm%cc( dim_, pm%ncell ) )
+    allocate( pm%cc( pm%ncell, dim_ ) )
     allocate( pm%cv( pm%ncell ) )
-    allocate( pm%dn( dim_, pm%nface ) )
-    allocate( pm%fc( dim_, pm%nface ) )
+    allocate( pm%dn( pm%nface, dim_ ) )
+    allocate( pm%fc( pm%nface, dim_ ) )
     allocate( pm%fs( pm%nface ) )
     !> Multigrid connectivity
     allocate( pm%mgpart( pm%ncell ) )
     !> Allocate nodes only to finest level
     !> and share it across levels
     if( pm%ilevel .eq. pm%nlevel ) then
-      allocate( pm%x( dim_, pm%nnode ) )
-      allocate( pm%patchdata( pproc_, pm%npatch) )
+      allocate( pm%x( pm%nnode, dim_ ) )
+      allocate( pm%patchdata( pm%npatch, proc_) )
       !> Parallel data
       if( pm%parallel .eqv. .true. ) then
         allocate( pm%cellgid( pm%ncell ) )

@@ -44,9 +44,9 @@ module PolyMeshMath
     implicit none
     !> Function arguements
     integer, intent(in)         :: iface, nnode, nface, ninternalface, ncell
-    real(kind=8), intent(in)    :: x(dim_, nnode)
-    integer, intent(in)         :: facelr(lr_, nface), facenode(quad_, nface)
-    real(kind=8), intent(out)   :: dn(dim_, nface), fs(nface), fc(dim_, nface)
+    real(kind=8), intent(in)    :: x(nnode, dim_)
+    integer, intent(in)         :: facelr(nface, lr_), facenode(nface, lr_)
+    real(kind=8), intent(out)   :: dn(nface, dim_), fs(nface), fc(nface, dim_)
     real(kind=8), intent(out)   :: fvol, fvolc(dim_)
     !> Local variables
     integer                     :: il, ir, iqdr
@@ -55,29 +55,29 @@ module PolyMeshMath
                                    dSqdr(dim_),       & ! Quadrature dS
                                    magdSqdr             ! |dS|
     !> Init face values to zero
-    dn(:, iface)  = 0.0d0
-    fc(:, iface)  = 0.0d0
+    dn(iface, :)  = 0.0d0
+    fc(iface, :)  = 0.0d0
     fvol          = 0.0d0
     fvolc         = 0.0d0
     !> Face metric calculation
-    rpos          = x(:, facenode( face1_:face4_, iface ))
-    il            = facelr(lcell_, iface)
-    ir            = facelr(rcell_, iface)
+    rpos          = x(facenode( face1_:face4_, iface ), :)
+    il            = facelr(iface, :)
+    ir            = facelr(iface, :)
     !> Obtain the quadrature point values
     do iqdr = 1, 4
-      rqdr        = r_ruled(  rpos, qxi_(iqdr), qeta_(iqdr) )
+      rqdr        = r_ruled( rpos, qxi_(iqdr), qeta_(iqdr) )
       dSqdr       = dS_ruled( rpos, qxi_(iqdr), qeta_(iqdr) )
       magdSqdr    = sqrt( sum( dSqdr * dSqdr ) )
-      dn(:,iface) = dn(:,iface) + dSqdr
-      fc(:,iface) = fc(:,iface) + rqdr * magdSqdr
+      dn(iface, :) = dn(iface, :) + dSqdr
+      fc(iface, :) = fc(iface, :) + rqdr * magdSqdr
       fvol        = fvol  + sum( rqdr * dSqdr )
       fvolc       = fvolc + sum( rqdr * rqdr ) * dSqdr
     end do
     !> Multiply by quadrature weights and scale factor
-    dn(:,iface)   = 0.250d0  * dn(:,iface)
-    fs(iface)     = sqrt( sum( dn(:,iface) * dn(:,iface) ) )
-    dn(:,iface)   = dn(:,iface) / fs(iface)
-    fc(:,iface)   = 0.250d0 * fc(:,iface) / fs(iface)
+    dn(iface, :)   = 0.250d0  * dn(iface, :)
+    fs(iface)     = sqrt( sum( dn(iface, :) * dn(iface, :) ) )
+    dn(iface, :)   = dn(iface, :) / fs(iface)
+    fc(iface, :)   = 0.250d0 * fc(:,iface) / fs(iface)
 
  end subroutine poly_metrics_loop
 
@@ -93,10 +93,10 @@ module PolyMeshMath
     x, facelr, facenode, cv, cc, dn, fs, fc )
     implicit none
     integer, intent(in)         :: nnode, nface, ninternalface, ncell
-    real(kind=8), intent(in)    :: x(dim_, nnode)
-    integer, intent(in)         :: facelr(lr_, nface), facenode(quad_, nface)
-    real(kind=8), intent(out)   :: cv(ncell), cc(dim_, ncell)
-    real(kind=8), intent(out)   :: dn(dim_, nface), fs(nface), fc(dim_, nface)
+    real(kind=8), intent(in)    :: x(nnode, dim_)
+    integer, intent(in)         :: facelr(nface, lr_), facenode(nface, quad_)
+    real(kind=8), intent(out)   :: cv(ncell), cc(ncell, dim_)
+    real(kind=8), intent(out)   :: dn(nface, dim_), fs(nface), fc(nface, dim_)
     !> Local variables
     integer                     :: iface, icell, il, ir
     real(kind=8)                :: fvol, fvolc(dim_)
@@ -106,27 +106,27 @@ module PolyMeshMath
     do iface = 1, ninternalface
       call poly_metrics_loop( iface, nnode, nface, ninternalface, ncell, &
                               x, facelr, facenode, dn, fs, fc, fvol, fvolc )
-      il = facelr(lcell_, iface)
-      ir = facelr(rcell_, iface)
+      il = facelr(iface, lcell_)
+      ir = facelr(iface, rcell_)
       !> Add CC/CV contribution of internal face
-      cv(il)       = cv(il)   + fvol
-      cv(ir)       = cv(ir)   - fvol
-      cc(:,il)     = cc(:,il) + fvolc
-      cc(:,ir)     = cc(:,ir) - fvolc
+      cv(il)     = cv(il)    + fvol
+      cv(ir)     = cv(ir)    - fvol
+      cc(il, :)  = cc(il, :) + fvolc
+      cc(ir, :)  = cc(ir, :) - fvolc
     end do
     !> Boundary face loop for metric calculation
     do iface = ninternalface + 1, nface
       call poly_metrics_loop( iface, nnode, nface, ninternalface, ncell, &
                               x, facelr, facenode, dn, fs, fc, fvol, fvolc )
-     il = facelr( lcell_, iface)
+     il = facelr(iface, lcell_)
      !> Add CC/CV contribution of boundary face
       cv(il)       = cv(il)   + fvol
-      cc(:,il)     = cc(:,il) + fvolc
+      cc(il, :)    = cc(il, :) + fvolc
     end do
     !> Do cell summation
     do icell = 1, ncell
       cv(icell)    = oneby12_ * cv(icell)
-      cc(:,icell)  = 0.1250d0 * cc(:,icell) / cv(icell)
+      cc(icell, :) = 0.1250d0 * cc(icell, :) / cv(icell)
     end do
   end subroutine poly_metrics
 

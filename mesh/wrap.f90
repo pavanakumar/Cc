@@ -24,7 +24,7 @@ module Wrap
       use iso_c_binding
       implicit none
       integer(kind=c_int) :: nnode
-      real(kind=c_double), dimension(*) :: x
+      real(kind=c_double) :: x(*)
     end subroutine get_pm_nodes
 
     subroutine get_pm_faces( nface, ninternalface, &
@@ -32,30 +32,30 @@ module Wrap
                              facelr ) bind(C)
       use iso_c_binding
       implicit none
-      integer(kind=c_int)               :: nface, ninternalface
-      integer(kind=c_int), dimension(*) :: nfacenode
-      integer(kind=c_int), dimension(*) :: facelr, facenode
+      integer(kind=c_int) :: nface, ninternalface
+      integer(kind=c_int) :: nfacenode(*)
+      integer(kind=c_int) :: facelr(*), facenode(*)
     end subroutine get_pm_faces
 
     subroutine get_pm_edges( nedge, edgenode ) bind(C)
       use iso_c_binding
       implicit none
       integer(kind=c_int) :: nedge
-      integer(kind=c_int), dimension(*) :: edgenode
+      integer(kind=c_int) :: edgenode(*)
     end subroutine get_pm_edges
 
     subroutine get_pm_patches( npatch, patchdata ) bind(C)
       use iso_c_binding
       implicit none
       integer(kind=c_int) :: npatch
-      integer(kind=c_int), dimension(*) :: patchdata
+      integer(kind=c_int) :: patchdata(*)
     end subroutine get_pm_patches
 
     subroutine get_pm_walldist( ncell, walldist ) bind (C)
       use iso_c_binding
       implicit none
       integer(kind=c_int) :: ncell
-      real(kind=c_double), dimension(*) :: walldist
+      real(kind=c_double) :: walldist(*)
     end subroutine get_pm_walldist
 
     subroutine get_pm_extra( ncell, celltype, cellnode, &
@@ -63,17 +63,15 @@ module Wrap
       use iso_c_binding
       implicit none
       integer(kind=c_int) :: ncell
-      integer(kind=c_int), dimension(*) :: celltype, &
-                                           cellnode, &
-                                           cellface, &
-                                           celledge
+      integer(kind=c_int) :: celltype(*), cellnode(*), &
+                             cellface(*), celledge(*)
     end subroutine get_pm_extra
 
     subroutine check_metrics( ncell, nface, cv, cc, fc, fs, dn ) bind(C)
       use iso_c_binding
       implicit none
       integer(kind=c_int) :: ncell, nface
-      real(kind=c_double), dimension(*) :: cv, cc, fc, fs, dn
+      real(kind=c_double) :: cv(*), cc(*), fc(*), fs(*), dn(*)
     end subroutine check_metrics
 
     subroutine close_mesh_api() bind(C)
@@ -92,8 +90,8 @@ module Wrap
       use iso_c_binding
       implicit none
       integer(kind=c_int) :: nvtxs, minsize, maxsize, nmoves, nparts
-      integer(kind=c_int), dimension(*) :: xadj, adjncy, part, options
-      real(kind=c_double), dimension(*) :: vvol, vsurf, adjwgt
+      integer(kind=c_int) :: xadj(*), adjncy(*), part(*), options(*)
+      real(kind=c_double) :: vvol(*), vsurf(*), adjwgt(*)
     end subroutine MGridGen_f90
 
     subroutine write_pm_tecio( ilevel, irank, nnode, ncell,&
@@ -102,15 +100,15 @@ module Wrap
       use iso_c_binding
       implicit none
       integer(kind=c_int) :: ilevel, irank, nnode, ncell, nface, ninternalface
-      real(kind=c_double), dimension(*) :: xyz
-      integer(kind=c_int), dimension(*) :: facelr, facenode
+      real(kind=c_double) :: xyz(*)
+      integer(kind=c_int) :: facelr(*), facenode(*)
     end subroutine write_pm_tecio
 
     subroutine sfc_perm( n, x, xmin, xmax, perm, iperm ) bind(C)
       use iso_c_binding
       implicit none
-      integer(kind=c_int) :: n, perm(n), iperm(n)
-      real(kind=c_double) :: x(3, n), xmin(3), xmax(3)
+      integer(kind=c_int) :: n, perm(*), iperm(*)
+      real(kind=c_double) :: x(*), xmin(*), xmax(*)
     end subroutine sfc_perm
 
     subroutine get_cellgid( ncell, cellgid ) bind(C)
